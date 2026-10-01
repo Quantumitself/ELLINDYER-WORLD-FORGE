@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-#include <spdlog/pattern_formatter.h>
+    #include <spdlog/pattern_formatter.h>
 #endif
 
 #include <spdlog/details/fmt_helper.h>
@@ -12,7 +12,7 @@
 #include <spdlog/details/os.h>
 
 #ifndef SPDLOG_NO_TLS
-#include <spdlog/mdc.h>
+    #include <spdlog/mdc.h>
 #endif
 
 #include <spdlog/fmt/fmt.h>
@@ -32,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-SPDLOG_NAMESPACE_BEGIN
+namespace spdlog {
 namespace details {
 
 ///////////////////////////////////////////////////////////////////////
@@ -510,13 +510,11 @@ public:
 };
 
 // ISO 8601 offset from UTC in timezone (+-HH:MM)
-// If SPDLOG_NO_TZ_OFFSET is defined, print "+??.??" instead.
 template <typename ScopedPadder>
 class z_formatter final : public flag_formatter {
 public:
-    explicit z_formatter(padding_info padinfo, pattern_time_type time_type)
-        : flag_formatter(padinfo),
-          time_type_(time_type) {}
+    explicit z_formatter(padding_info padinfo)
+        : flag_formatter(padinfo) {}
 
     z_formatter() = default;
     z_formatter(const z_formatter &) = delete;
@@ -525,17 +523,7 @@ public:
     void format(const details::log_msg &msg, const std::tm &tm_time, memory_buf_t &dest) override {
         const size_t field_size = 6;
         ScopedPadder p(field_size, padinfo_, dest);
-#ifdef SPDLOG_NO_TZ_OFFSET
-        (void)msg;
-        (void)tm_time;
-        const char *str = "+??:??";
-        dest.append(str, str + 6);
-#else
-        if (time_type_ == pattern_time_type::utc) {
-            const char *zeroes = "+00:00";
-            dest.append(zeroes, zeroes + 6);
-            return;
-        }
+
         auto total_minutes = get_cached_offset(msg, tm_time);
         bool is_negative = total_minutes < 0;
         if (is_negative) {
@@ -548,11 +536,9 @@ public:
         fmt_helper::pad2(total_minutes / 60, dest);  // hours
         dest.push_back(':');
         fmt_helper::pad2(total_minutes % 60, dest);  // minutes
-#endif  // SPDLOG_NO_TZ_OFFSET
     }
 
 private:
-    pattern_time_type time_type_;
     log_clock::time_point last_update_{std::chrono::seconds(0)};
     int offset_minutes_{0};
 
@@ -710,9 +696,9 @@ public:
         : flag_formatter(padinfo) {}
 
 #ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4127)  // consider using 'if constexpr' instead
-#endif                           // _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4127)  // consider using 'if constexpr' instead
+#endif                               // _MSC_VER
     static const char *basename(const char *filename) {
         // if the size is 2 (1 character + null terminator) we can use the more efficient strrchr
         // the branch will be elided by optimizations
@@ -729,7 +715,7 @@ public:
         }
     }
 #ifdef _MSC_VER
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif  // _MSC_VER
 
     void format(const details::log_msg &msg, const std::tm &, memory_buf_t &dest) override {
@@ -815,7 +801,7 @@ public:
         : flag_formatter(padinfo) {}
 
     void format(const details::log_msg &, const std::tm &, memory_buf_t &dest) override {
-        const auto &mdc_map = mdc::get_context();
+        auto &mdc_map = mdc::get_context();
         if (mdc_map.empty()) {
             ScopedPadder p(0, padinfo_, dest);
             return;
@@ -825,10 +811,11 @@ public:
     }
 
     void format_mdc(const mdc::mdc_map_t &mdc_map, memory_buf_t &dest) {
-        const auto last_element = std::prev(mdc_map.end());
+        auto last_element = --mdc_map.end();
         for (auto it = mdc_map.begin(); it != mdc_map.end(); ++it) {
-            const auto &key = it->first;
-            const auto &value = it->second;
+            auto &pair = *it;
+            const auto &key = pair.first;
+            const auto &value = pair.second;
             size_t content_size = key.size() + value.size() + 1;  // 1 for ':'
 
             if (it != last_element) {
@@ -1013,7 +1000,7 @@ SPDLOG_INLINE void pattern_formatter::set_pattern(std::string pattern) {
 
 SPDLOG_INLINE void pattern_formatter::need_localtime(bool need) { need_localtime_ = need; }
 
-SPDLOG_INLINE std::tm pattern_formatter::get_time_(const details::log_msg &msg) const {
+SPDLOG_INLINE std::tm pattern_formatter::get_time_(const details::log_msg &msg) {
     if (pattern_time_type_ == pattern_time_type::local) {
         return details::os::localtime(log_clock::to_time_t(msg.time));
     }
@@ -1167,11 +1154,12 @@ SPDLOG_INLINE void pattern_formatter::handle_flag_(char flag, details::padding_i
             formatters_.push_back(details::make_unique<details::T_formatter<Padder>>(padding));
             need_localtime_ = true;
             break;
+
         case ('z'):  // timezone
-            formatters_.push_back(
-                details::make_unique<details::z_formatter<Padder>>(padding, pattern_time_type_));
+            formatters_.push_back(details::make_unique<details::z_formatter<Padder>>(padding));
             need_localtime_ = true;
             break;
+
         case ('P'):  // pid
             formatters_.push_back(details::make_unique<details::pid_formatter<Padder>>(padding));
             break;
@@ -1349,4 +1337,4 @@ SPDLOG_INLINE void pattern_formatter::compile_pattern_(const std::string &patter
         formatters_.push_back(std::move(user_chars));
     }
 }
-SPDLOG_NAMESPACE_END
+}  // namespace spdlog

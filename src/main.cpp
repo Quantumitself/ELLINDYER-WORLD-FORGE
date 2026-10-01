@@ -11,6 +11,12 @@
 #include "Core/Identifier.hpp"
 #include "Core/IdentifierFormatter.hpp"
 #include "Core/IdentifierGenerator.hpp"
+#include "Core/LogBootstrap.hpp"
+#include "Core/LogConfiguration.hpp"
+#include "Core/LogLevel.hpp"
+#include "Core/Logger.hpp"
+#include "Core/LoggerExtensions.hpp"
+#include "Core/LogMacros.hpp"
 #include "Core/Result.hpp"
 #include "Core/ResultHelpers.hpp"
 #include "Core/Version.hpp"
@@ -156,7 +162,6 @@ void PrintIdentifierInformation()
 
 ellindyer::core::Result<int> ParsePositiveInteger(const std::string& text)
 {
-    using ellindyer::core::Error;
     using ellindyer::core::ErrorCode;
     using ellindyer::core::MakeError;
     using ellindyer::core::MakeResult;
@@ -239,14 +244,93 @@ void PrintErrorInformation()
     ErrorLogging::LogError("bootstrap", failure);
 }
 
+bool InitializeLogging()
+{
+    using ellindyer::core::ApplicationPaths;
+    using ellindyer::core::LogBootstrap;
+    using ellindyer::core::LogConfiguration;
+    using ellindyer::core::LogConfigurationBuilder;
+    using ellindyer::core::LogLevel;
+
+    const bool user_dirs_ready = ApplicationPaths::EnsureUserDirectoriesExist();
+    if (!user_dirs_ready)
+    {
+        return false;
+    }
+
+    LogConfigurationBuilder builder;
+    builder
+        .WithLevel(LogLevel::Info)
+        .WithConsole(true, true, false);
+
+    if (user_dirs_ready)
+    {
+        builder.WithDefaultLogFilePath(ApplicationPaths::GetLogsDirectory(),
+                                       "EllindyerWorldForge.log");
+        const LogConfiguration& configuration = builder.Build();
+        (void)configuration;
+    }
+
+    builder.WithFile(ApplicationPaths::GetLogsDirectory() / "EllindyerWorldForge.log",
+                     true, 4U * 1024U * 1024U, 4);
+
+    const LogConfiguration& configuration = builder.Build();
+    return LogBootstrap::Initialize(configuration);
+}
+
+void EmitStartupLogs()
+{
+    using ellindyer::core::ApplicationInfo;
+    using ellindyer::core::BuildInfo;
+    using ellindyer::core::GetApplicationInfo;
+    using ellindyer::core::GetBuildInfo;
+    using ellindyer::core::GetLogger;
+    using ellindyer::core::LoggerExtensions;
+    using ellindyer::core::LogLevel;
+
+    const ApplicationInfo info = GetApplicationInfo();
+    const BuildInfo build = GetBuildInfo();
+
+    LoggerExtensions::LogSection(GetLogger(), std::string_view{"Startup"});
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "application", info.name);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "version", info.version);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "tagline", info.tagline);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "organization", info.organization);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "configuration",
+        std::string_view{reinterpret_cast<const char*>(
+            ellindyer::core::GetBuildConfigurationName(build.configuration).data()),
+            ellindyer::core::GetBuildConfigurationName(build.configuration).size()});
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "compiler", build.compiler_name);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "platform", build.platform);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "architecture", build.architecture);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "cpp_standard", build.cpp_standard);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "build_date", build.build_date);
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "build_time", build.build_time);
+
+    ELLINDYER_LOG_INFO("Application startup complete");
+}
+
 int RunApplication()
 {
+    const bool logging_ready = InitializeLogging();
+    if (!logging_ready)
+    {
+        std::fprintf(stderr, "Failed to initialize logging.%s", kLineEnding);
+        return EXIT_FAILURE;
+    }
+
     PrintApplicationBanner();
     PrintBuildInformation();
     PrintPathInformation();
     PrintThirdPartyStatus();
     PrintIdentifierInformation();
     PrintErrorInformation();
+
+    EmitStartupLogs();
+
+    ELLINDYER_LOG_INFO("Application shutdown initiated");
+    ellindyer::core::LogBootstrap::Shutdown();
+
     std::fflush(stdout);
     std::fflush(stderr);
     return EXIT_SUCCESS;

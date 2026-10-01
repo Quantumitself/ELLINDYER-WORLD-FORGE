@@ -120,24 +120,21 @@ set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/Core/ErrorCode.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/Error.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/ErrorLogging.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/LogLevel.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/Logger.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/LogConfiguration.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/LogBootstrap.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/LoggerExtensions.cpp"
 )
 
 add_executable(${ELLINDYER_APP_TARGET}
     ${ELLINDYER_APP_SOURCES}
 )
 
-if(CMAKE_CONFIGURATION_TYPES)
-    foreach(cfg IN ITEMS Debug Release RelWithDebInfo MinSizeRel)
-        string(TOUPPER "${cfg}" cfg_upper)
-        target_compile_definitions(${ELLINDYER_APP_TARGET} PRIVATE
-            $<$<CONFIG:${cfg}>:ELLINDYER_BUILD_${cfg_upper}=1>
-        )
-    endforeach()
-endif()
-
 target_include_directories(${ELLINDYER_APP_TARGET}
     PRIVATE
         "${ELLINDYER_SOURCES_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/spdlog/include"
 )
 
 target_compile_definitions(${ELLINDYER_APP_TARGET}
@@ -157,6 +154,15 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
     target_compile_definitions(${ELLINDYER_APP_TARGET} PRIVATE ELLINDYER_BUILD_MINSIZEREL=1)
 endif()
 
+if(CMAKE_CONFIGURATION_TYPES)
+    foreach(cfg IN ITEMS Debug Release RelWithDebInfo MinSizeRel)
+        string(TOUPPER "${cfg}" cfg_upper)
+        target_compile_definitions(${ELLINDYER_APP_TARGET} PRIVATE
+            $<$<CONFIG:${cfg}>:ELLINDYER_BUILD_${cfg_upper}=1>
+        )
+    endforeach()
+endif()
+
 target_link_libraries(${ELLINDYER_APP_TARGET}
     PRIVATE
         ellindyer_json
@@ -170,6 +176,17 @@ set_target_properties(${ELLINDYER_APP_TARGET} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     OUTPUT_NAME "EllindyerWorldForge"
 )
+
+# Disable MSBuild's vcpkg auto-integration for this target.
+if(MSVC)
+    set_target_properties(${ELLINDYER_APP_TARGET} PROPERTIES
+        VS_GLOBAL_VcpkgEnabled "false"
+        VS_GLOBAL_VcpkgEnableManifest "false"
+        VS_GLOBAL_VcpkgAutoLink "false"
+        VS_GLOBAL_VcpkgConfiguration "Debug"
+        VS_GLOBAL_VcpkgEnableLock "false"
+    )
+endif()
 
 if(MSVC)
     target_link_options(${ELLINDYER_APP_TARGET} PRIVATE

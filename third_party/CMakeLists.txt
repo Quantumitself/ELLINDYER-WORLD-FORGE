@@ -26,12 +26,6 @@ target_include_directories(ellindyer_spdlog
     INTERFACE
         "${CMAKE_CURRENT_SOURCE_DIR}/spdlog/include"
 )
-target_compile_definitions(ellindyer_spdlog
-    INTERFACE
-        SPDLOG_HEADER_ONLY=1
-        SPDLOG_COMPILED_LIB=0
-        SPDLOG_FMT_EXTERNAL=0
-)
 
 # -----------------------------------------------------------------------------
 # stb (image loading)

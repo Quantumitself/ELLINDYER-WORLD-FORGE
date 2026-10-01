@@ -6,7 +6,6 @@
   "cmake.buildPreset": "default",
   "cmake.buildDirectory": "${workspaceFolder}/build/${presetName}",
   "cmake.exportCompileCommandsFile": true,
-  "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
   "C_Cpp.default.cppStandard": "c++20",
   "C_Cpp.default.cStandard": "c17",
@@ -50,8 +49,5 @@
   "files.exclude": {
     "**/.git": true,
     "**/.vs": true
-  },
-  "cmake.configureSettings": {
-    "CMAKE_EXE_LINKER_FLAGS": "/SUBSYSTEM:WINDOWS"
   }
 }

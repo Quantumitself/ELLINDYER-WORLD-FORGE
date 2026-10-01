@@ -1,101 +1,106 @@
-{
-  "version": 6,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 20,
-    "patch": 0
-  },
-  "configurePresets": [
-    {
-      "name": "default",
-      "displayName": "Default (VS 2026, Debug)",
-      "generator": "Visual Studio 18 2026",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/default",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    },
-    {
-      "name": "debug",
-      "displayName": "Debug (Ninja)",
-      "description": "Debug configuration using Ninja.",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    },
-    {
-      "name": "release",
-      "displayName": "Release (Ninja)",
-      "description": "Release configuration using Ninja.",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    },
-    {
-      "name": "relwithdebinfo",
-      "displayName": "RelWithDebInfo (Ninja)",
-      "description": "Release with debug info using Ninja.",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/relwithdebinfo",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    },
-    {
-      "name": "msvc-debug",
-      "displayName": "MSVC Debug",
-      "description": "Debug configuration using the Visual Studio generator.",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/msvc-debug",
-      "cacheVariables": {
-        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;RelWithDebInfo"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "default",
-      "configurePreset": "default",
-      "configuration": "Debug"
-    },
-    {
-      "name": "debug",
-      "configurePreset": "debug",
-      "configuration": "Debug"
-    },
-    {
-      "name": "release",
-      "configurePreset": "release",
-      "configuration": "Release"
-    },
-    {
-      "name": "relwithdebinfo",
-      "configurePreset": "relwithdebinfo",
-      "configuration": "RelWithDebInfo"
-    },
-    {
-      "name": "msvc-debug",
-      "configurePreset": "msvc-debug",
-      "configuration": "Debug"
-    }
-  ],
-  "testPresets": [
-    {
-      "name": "default",
-      "configurePreset": "default",
-      "output": {
-        "outputOnFailure": true
-      }
-    }
-  ]
+﻿{
+    "version":  6,
+    "cmakeMinimumRequired":  {
+                                 "major":  3,
+                                 "minor":  20,
+                                 "patch":  0
+                             },
+    "configurePresets":  [
+                             {
+                                 "name":  "default",
+                                 "displayName":  "Default (VS 2026, Debug)",
+                                 "generator":  "Visual Studio 18 2026",
+                                 "architecture":  "x64",
+                                 "binaryDir":  "${sourceDir}/build/default",
+                                 "cacheVariables":  {
+                                                        "CMAKE_BUILD_TYPE":  "Debug",
+                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON",
+                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                    }
+                             },
+                             {
+                                 "name":  "debug",
+                                 "displayName":  "Debug (Ninja)",
+                                 "description":  "Debug configuration using Ninja.",
+                                 "generator":  "Ninja",
+                                 "binaryDir":  "${sourceDir}/build/debug",
+                                 "cacheVariables":  {
+                                                        "CMAKE_BUILD_TYPE":  "Debug",
+                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON",
+                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                    }
+                             },
+                             {
+                                 "name":  "release",
+                                 "displayName":  "Release (Ninja)",
+                                 "description":  "Release configuration using Ninja.",
+                                 "generator":  "Ninja",
+                                 "binaryDir":  "${sourceDir}/build/release",
+                                 "cacheVariables":  {
+                                                        "CMAKE_BUILD_TYPE":  "Release",
+                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON",
+                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                    }
+                             },
+                             {
+                                 "name":  "relwithdebinfo",
+                                 "displayName":  "RelWithDebInfo (Ninja)",
+                                 "description":  "Release with debug info using Ninja.",
+                                 "generator":  "Ninja",
+                                 "binaryDir":  "${sourceDir}/build/relwithdebinfo",
+                                 "cacheVariables":  {
+                                                        "CMAKE_BUILD_TYPE":  "RelWithDebInfo",
+                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON",
+                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                    }
+                             },
+                             {
+                                 "name":  "msvc-debug",
+                                 "displayName":  "MSVC Debug",
+                                 "description":  "Debug configuration using the Visual Studio generator.",
+                                 "generator":  "Visual Studio 17 2022",
+                                 "architecture":  "x64",
+                                 "binaryDir":  "${sourceDir}/build/msvc-debug",
+                                 "cacheVariables":  {
+                                                        "CMAKE_CONFIGURATION_TYPES":  "Debug;Release;RelWithDebInfo",
+                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                    }
+                             }
+                         ],
+    "buildPresets":  [
+                         {
+                             "name":  "default",
+                             "configurePreset":  "default",
+                             "configuration":  "Debug"
+                         },
+                         {
+                             "name":  "debug",
+                             "configurePreset":  "debug",
+                             "configuration":  "Debug"
+                         },
+                         {
+                             "name":  "release",
+                             "configurePreset":  "release",
+                             "configuration":  "Release"
+                         },
+                         {
+                             "name":  "relwithdebinfo",
+                             "configurePreset":  "relwithdebinfo",
+                             "configuration":  "RelWithDebInfo"
+                         },
+                         {
+                             "name":  "msvc-debug",
+                             "configurePreset":  "msvc-debug",
+                             "configuration":  "Debug"
+                         }
+                     ],
+    "testPresets":  [
+                        {
+                            "name":  "default",
+                            "configurePreset":  "default",
+                            "output":  {
+                                           "outputOnFailure":  true
+                                       }
+                        }
+                    ]
 }
