@@ -110,6 +110,9 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party"
 set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/main.cpp"
     "${ELLINDYER_SOURCES_DIR}/ThirdPartyProbe.cpp"
+    "${ELLINDYER_SOURCES_DIR}/App/ApplicationContext.cpp"
+    "${ELLINDYER_SOURCES_DIR}/App/ApplicationLifecycle.cpp"
+    "${ELLINDYER_SOURCES_DIR}/App/Application.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/Version.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/BuildInfo.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/ApplicationPaths.cpp"
@@ -176,6 +179,10 @@ target_link_libraries(${ELLINDYER_APP_TARGET}
         ellindyer_imgui
         ellindyer_catch2
 )
+
+if(WIN32)
+    target_link_libraries(${ELLINDYER_APP_TARGET} PRIVATE shell32 ole32)
+endif()
 
 set_target_properties(${ELLINDYER_APP_TARGET} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
