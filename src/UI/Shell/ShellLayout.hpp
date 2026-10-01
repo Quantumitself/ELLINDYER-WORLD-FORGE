@@ -5,18 +5,18 @@
 #include <imgui.h>
 
 #include "UI/Fonts/FontManager.hpp"
-#include "UI/Shell/ShellWindow.hpp"
+#include "UI/Layout/PanelLayout.hpp"
+#include "UI/Panels/InspectorPanel.hpp"
+#include "UI/Panels/ProjectExplorerPanel.hpp"
+#include "UI/Panels/StatusBarPanel.hpp"
+#include "UI/Panels/WorkspacePanel.hpp"
 
 namespace ellindyer::ui::shell
 {
 
 struct ShellLayoutConfiguration
 {
-    float left_panel_width_fraction  = 0.20f;
-    float right_panel_width_fraction = 0.22f;
-    float left_panel_min_width       = 220.0f;
-    float right_panel_min_width      = 260.0f;
-    float center_min_width           = 320.0f;
+    ellindyer::ui::layout::PanelLayoutConfiguration panels{};
 };
 
 class ShellLayout
@@ -34,28 +34,25 @@ public:
 
     void Render(const ellindyer::ui::fonts::FontSet& fonts);
 
-    [[nodiscard]] float GetLeftPanelWidth() const noexcept;
+    [[nodiscard]] ellindyer::ui::panels::ProjectExplorerPanel& GetProjectExplorer() noexcept;
 
-    [[nodiscard]] float GetRightPanelWidth() const noexcept;
+    [[nodiscard]] ellindyer::ui::panels::WorkspacePanel& GetWorkspace() noexcept;
 
-    [[nodiscard]] float GetCenterWidth() const noexcept;
+    [[nodiscard]] ellindyer::ui::panels::InspectorPanel& GetInspector() noexcept;
 
-    [[nodiscard]] float GetContentHeight() const noexcept;
+    [[nodiscard]] ellindyer::ui::panels::StatusBarPanel& GetStatusBar() noexcept;
 
 private:
-    void RenderLeftPanel(const ellindyer::ui::fonts::FontSet& fonts);
+    void RenderBody(const ellindyer::ui::fonts::FontSet& fonts);
 
-    void RenderCenterPanel(const ellindyer::ui::fonts::FontSet& fonts);
+    void RenderStatusBar(const ellindyer::ui::fonts::FontSet& fonts);
 
-    void RenderRightPanel(const ellindyer::ui::fonts::FontSet& fonts);
-
-    void ComputePanelWidths(const ImVec2& content_size);
-
-    ShellLayoutConfiguration configuration_{};
-    float                   left_panel_width_  = 0.0f;
-    float                   right_panel_width_ = 0.0f;
-    float                   center_width_      = 0.0f;
-    float                   content_height_    = 0.0f;
+    ShellLayoutConfiguration                         configuration_{};
+    ellindyer::ui::layout::PanelLayout               panel_layout_{};
+    ellindyer::ui::panels::ProjectExplorerPanel      project_explorer_;
+    ellindyer::ui::panels::WorkspacePanel            workspace_;
+    ellindyer::ui::panels::InspectorPanel            inspector_;
+    ellindyer::ui::panels::StatusBarPanel            status_bar_;
 };
 
 } // namespace ellindyer::ui::shell

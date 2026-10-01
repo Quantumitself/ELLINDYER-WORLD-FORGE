@@ -246,22 +246,50 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
 void ApplicationLifecycle::ConfigureShell()
 {
     ellindyer::ui::shell::ShellWindowConfiguration shell_configuration{};
-    shell_configuration.title         = context_.GetApplicationInfo().name;
-    shell_configuration.subtitle      = context_.GetApplicationInfo().tagline;
-    shell_configuration.show_menu_bar = false;
+    shell_configuration.title           = context_.GetApplicationInfo().name;
+    shell_configuration.subtitle        = context_.GetApplicationInfo().tagline;
+    shell_configuration.show_menu_bar   = false;
     shell_configuration.show_status_bar = true;
     shell_configuration.show_dockspace  = false;
 
     shell_window_.Configure(shell_configuration);
 
     ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
-    layout_configuration.left_panel_width_fraction  = 0.20f;
-    layout_configuration.right_panel_width_fraction = 0.22f;
-    layout_configuration.left_panel_min_width       = 220.0f;
-    layout_configuration.right_panel_min_width      = 260.0f;
-    layout_configuration.center_min_width           = 320.0f;
+    layout_configuration.panels.left_width_fraction  = 0.20f;
+    layout_configuration.panels.right_width_fraction = 0.22f;
+    layout_configuration.panels.left_min_width       = 220.0f;
+    layout_configuration.panels.right_min_width      = 260.0f;
+    layout_configuration.panels.center_min_width     = 320.0f;
+    layout_configuration.panels.panel_spacing        = 8.0f;
 
     shell_layout_.Configure(layout_configuration);
+
+    shell_layout_.GetProjectExplorer().SetProjectName("Ellindyer World Forge");
+    shell_layout_.GetProjectExplorer().AddRootEntry("World");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Schemas");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Entities");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Relationships");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Narrative");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Quests");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Rules");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Formulas");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Maps");
+    shell_layout_.GetProjectExplorer().AddRootEntry("Assets");
+
+    shell_layout_.GetWorkspace().SetTitle("Workspace");
+    shell_layout_.GetWorkspace().SetDescription("Ellindyer World Forge");
+    shell_layout_.GetWorkspace().AddHint(
+        "The workspace hosts schema, entity, relationship, narrative, spatial,");
+    shell_layout_.GetWorkspace().AddHint(
+        "formula, rule, and validation surfaces as they become available.");
+
+    shell_layout_.GetInspector().SetSelectionTitle("");
+    shell_layout_.GetInspector().SetSelectionSubtitle("");
+    shell_layout_.GetInspector().Clear();
+
+    shell_layout_.GetStatusBar().SetLeftText("Ready");
+    shell_layout_.GetStatusBar().SetMiddleText("");
+    shell_layout_.GetStatusBar().SetRightText("");
 }
 
 void ApplicationLifecycle::RunSplashStage()
@@ -345,6 +373,13 @@ void ApplicationLifecycle::RunMainLoop()
 void ApplicationLifecycle::RenderMainFrame()
 {
     const ellindyer::ui::fonts::FontSet& fonts = ui_host_->GetFonts();
+
+    const ImGuiIO& io = ImGui::GetIO();
+
+    shell_layout_.GetStatusBar().SetMiddleText(
+        "Frame: " + std::to_string(static_cast<int>(io.DeltaTime * 1000.0f)) + " ms");
+    shell_layout_.GetStatusBar().SetRightText(
+        "FPS: " + std::to_string(static_cast<int>(io.Framerate)));
 
     shell_window_.Render(fonts);
     shell_layout_.Render(fonts);
