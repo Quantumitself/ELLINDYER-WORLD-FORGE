@@ -125,6 +125,11 @@ set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/Core/LogConfiguration.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/LogBootstrap.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/LoggerExtensions.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/FileError.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/FileHelpers.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/PathHelpers.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/FileWatcher.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/FileSystemSummary.cpp"
 )
 
 add_executable(${ELLINDYER_APP_TARGET}

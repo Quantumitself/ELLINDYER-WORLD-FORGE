@@ -8,6 +8,8 @@
 #include "Core/Error.hpp"
 #include "Core/ErrorCode.hpp"
 #include "Core/ErrorLogging.hpp"
+#include "Core/FileHelpers.hpp"
+#include "Core/FileSystemSummary.hpp"
 #include "Core/Identifier.hpp"
 #include "Core/IdentifierFormatter.hpp"
 #include "Core/IdentifierGenerator.hpp"
@@ -17,6 +19,7 @@
 #include "Core/Logger.hpp"
 #include "Core/LoggerExtensions.hpp"
 #include "Core/LogMacros.hpp"
+#include "Core/PathHelpers.hpp"
 #include "Core/Result.hpp"
 #include "Core/ResultHelpers.hpp"
 #include "Core/Version.hpp"
@@ -261,18 +264,9 @@ bool InitializeLogging()
     LogConfigurationBuilder builder;
     builder
         .WithLevel(LogLevel::Info)
-        .WithConsole(true, true, false);
-
-    if (user_dirs_ready)
-    {
-        builder.WithDefaultLogFilePath(ApplicationPaths::GetLogsDirectory(),
-                                       "EllindyerWorldForge.log");
-        const LogConfiguration& configuration = builder.Build();
-        (void)configuration;
-    }
-
-    builder.WithFile(ApplicationPaths::GetLogsDirectory() / "EllindyerWorldForge.log",
-                     true, 4U * 1024U * 1024U, 4);
+        .WithConsole(true, true, false)
+        .WithFile(ApplicationPaths::GetLogsDirectory() / "EllindyerWorldForge.log",
+                  true, 4U * 1024U * 1024U, 4);
 
     const LogConfiguration& configuration = builder.Build();
     return LogBootstrap::Initialize(configuration);
@@ -310,6 +304,78 @@ void EmitStartupLogs()
     ELLINDYER_LOG_INFO("Application startup complete");
 }
 
+void PrintFileHelpersInformation()
+{
+    using ellindyer::core::ApplicationPaths;
+    using ellindyer::core::DirectorySummary;
+    using ellindyer::core::FileHelpers;
+    using ellindyer::core::FileSystemSummary;
+    using ellindyer::core::PathHelpers;
+    using ellindyer::core::Result;
+
+    const std::filesystem::path user_dir = ApplicationPaths::GetUserDataDirectory();
+    const std::filesystem::path scratch_dir = user_dir / "scratch";
+    const std::filesystem::path test_file = scratch_dir / "hello.txt";
+
+    std::printf("File helpers examples:%s", kLineEnding);
+
+    const Result<void> dir_ready = FileHelpers::CreateDirectoryIfMissing(scratch_dir);
+    std::printf("  create dir   : %s%s",
+                dir_ready.HasValue() ? "ok" : dir_ready.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+
+    const Result<void> write_ok = FileHelpers::WriteAllText(test_file, "Hello, World!");
+    std::printf("  write text   : %s%s",
+                write_ok.HasValue() ? "ok" : write_ok.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+
+    const Result<std::string> read_back = FileHelpers::ReadAllText(test_file);
+    std::printf("  read text    : %s (%s)%s",
+                read_back.HasValue() ? "ok" : "error",
+                read_back.HasValue() ? read_back.Value().c_str()
+                                     : read_back.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+
+    const Result<std::uintmax_t> file_size = FileHelpers::GetFileSize(test_file);
+    std::printf("  file size    : %s%s",
+                file_size.HasValue()
+                    ? std::to_string(file_size.Value()).c_str()
+                    : file_size.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+
+    const bool exists = FileHelpers::Exists(test_file);
+    std::printf("  exists       : %s%s",
+                exists ? "true" : "false",
+                kLineEnding);
+
+    const std::string normalized = FileHelpers::NormalizeSeparators(test_file.string());
+    std::printf("  normalized   : %s%s", normalized.c_str(), kLineEnding);
+
+    const std::string base_name = PathHelpers::GetFileNameWithoutExtension(test_file);
+    std::printf("  base name    : %s%s", base_name.c_str(), kLineEnding);
+
+    const bool has_txt = PathHelpers::HasExtension(test_file, "txt");
+    std::printf("  has .txt     : %s%s", has_txt ? "true" : "false", kLineEnding);
+
+    const std::filesystem::path sanitized = PathHelpers::SanitizeFileName("my:file/name?.txt");
+    std::printf("  sanitized    : %s%s", sanitized.generic_string().c_str(), kLineEnding);
+
+    const bool within = PathHelpers::IsWithinDirectory(test_file, user_dir);
+    std::printf("  within user  : %s%s", within ? "true" : "false", kLineEnding);
+
+    const DirectorySummary summary = FileSystemSummary::Summarize(scratch_dir, false);
+    std::printf("  summary      : files=%llu dirs=%llu size=%s%s",
+                static_cast<unsigned long long>(summary.file_count),
+                static_cast<unsigned long long>(summary.directory_count),
+                FileSystemSummary::FormatBytes(summary.total_bytes).c_str(),
+                kLineEnding);
+
+    const Result<void> removed = FileHelpers::RemoveFile(test_file);
+    std::printf("  remove file  : %s%s",
+                removed.HasValue() ? "ok" : removed.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+}
+
 int RunApplication()
 {
     const bool logging_ready = InitializeLogging();
@@ -325,6 +391,7 @@ int RunApplication()
     PrintThirdPartyStatus();
     PrintIdentifierInformation();
     PrintErrorInformation();
+    PrintFileHelpersInformation();
 
     EmitStartupLogs();
 

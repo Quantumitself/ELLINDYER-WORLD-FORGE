@@ -14,8 +14,7 @@
                                  "binaryDir":  "${sourceDir}/build/default",
                                  "cacheVariables":  {
                                                         "CMAKE_BUILD_TYPE":  "Debug",
-                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON",
-                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON"
                                                     }
                              },
                              {
@@ -26,8 +25,7 @@
                                  "binaryDir":  "${sourceDir}/build/debug",
                                  "cacheVariables":  {
                                                         "CMAKE_BUILD_TYPE":  "Debug",
-                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON",
-                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON"
                                                     }
                              },
                              {
@@ -38,8 +36,7 @@
                                  "binaryDir":  "${sourceDir}/build/release",
                                  "cacheVariables":  {
                                                         "CMAKE_BUILD_TYPE":  "Release",
-                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON",
-                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON"
                                                     }
                              },
                              {
@@ -50,8 +47,7 @@
                                  "binaryDir":  "${sourceDir}/build/relwithdebinfo",
                                  "cacheVariables":  {
                                                         "CMAKE_BUILD_TYPE":  "RelWithDebInfo",
-                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON",
-                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                        "CMAKE_EXPORT_COMPILE_COMMANDS":  "ON"
                                                     }
                              },
                              {
@@ -62,8 +58,7 @@
                                  "architecture":  "x64",
                                  "binaryDir":  "${sourceDir}/build/msvc-debug",
                                  "cacheVariables":  {
-                                                        "CMAKE_CONFIGURATION_TYPES":  "Debug;Release;RelWithDebInfo",
-                                                        "CMAKE_TOOLCHAIN_FILE":  "${sourceDir}/noop-toolchain.cmake"
+                                                        "CMAKE_CONFIGURATION_TYPES":  "Debug;Release;RelWithDebInfo"
                                                     }
                              }
                          ],
