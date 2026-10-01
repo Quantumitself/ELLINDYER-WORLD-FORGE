@@ -19,6 +19,14 @@
 #include "Core/Logger.hpp"
 #include "Core/LoggerExtensions.hpp"
 #include "Core/LogMacros.hpp"
+#include "Core/Math/Geometry.hpp"
+#include "Core/Math/MathConstants.hpp"
+#include "Core/Math/MathUtils.hpp"
+#include "Core/Math/Rect.hpp"
+#include "Core/Math/Size.hpp"
+#include "Core/Math/Transform2D.hpp"
+#include "Core/Math/Vec2.hpp"
+#include "Core/Math/Vec3.hpp"
 #include "Core/PathHelpers.hpp"
 #include "Core/Result.hpp"
 #include "Core/ResultHelpers.hpp"
@@ -376,6 +384,111 @@ void PrintFileHelpersInformation()
                 kLineEnding);
 }
 
+void PrintMathInformation()
+{
+    using namespace ellindyer::core::math;
+
+    const Vec2f a(3.0f, 4.0f);
+    const Vec2f b(1.0f, 2.0f);
+
+    std::printf("Vec2 examples:%s", kLineEnding);
+    std::printf("  a             : %s%s", a.ToString().c_str(), kLineEnding);
+    std::printf("  b             : %s%s", b.ToString().c_str(), kLineEnding);
+    std::printf("  a + b         : %s%s", (a + b).ToString().c_str(), kLineEnding);
+    std::printf("  a - b         : %s%s", (a - b).ToString().c_str(), kLineEnding);
+    std::printf("  a * 2         : %s%s", (a * 2.0f).ToString().c_str(), kLineEnding);
+    std::printf("  a / 2         : %s%s", (a / 2.0f).ToString().c_str(), kLineEnding);
+    std::printf("  length(a)     : %.4f%s", static_cast<double>(a.Length()), kLineEnding);
+    std::printf("  distance(a,b) : %.4f%s", static_cast<double>(a.Distance(b)), kLineEnding);
+    std::printf("  dot(a,b)      : %.4f%s", static_cast<double>(a.Dot(b)), kLineEnding);
+    std::printf("  cross(a,b)    : %.4f%s", static_cast<double>(a.Cross(b)), kLineEnding);
+    std::printf("  normalized(a) : %s%s", a.Normalized().ToString().c_str(), kLineEnding);
+    std::printf("  perpendicular : %s%s", a.Perpendicular().ToString().c_str(), kLineEnding);
+    std::printf("  angle(a)      : %.4f rad%s",
+                static_cast<double>(a.Angle()), kLineEnding);
+
+    const Vec3f p(1.0f, 2.0f, 3.0f);
+    const Vec3f q(4.0f, 5.0f, 6.0f);
+
+    std::printf("Vec3 examples:%s", kLineEnding);
+    std::printf("  p             : %s%s", p.ToString().c_str(), kLineEnding);
+    std::printf("  q             : %s%s", q.ToString().c_str(), kLineEnding);
+    std::printf("  p + q         : %s%s", (p + q).ToString().c_str(), kLineEnding);
+    std::printf("  p - q         : %s%s", (p - q).ToString().c_str(), kLineEnding);
+    std::printf("  p * 3         : %s%s", (p * 3.0f).ToString().c_str(), kLineEnding);
+    std::printf("  dot(p,q)      : %.4f%s", static_cast<double>(p.Dot(q)), kLineEnding);
+    std::printf("  cross(p,q)    : %s%s", p.Cross(q).ToString().c_str(), kLineEnding);
+    std::printf("  length(p)     : %.4f%s", static_cast<double>(p.Length()), kLineEnding);
+    std::printf("  normalized(p) : %s%s", p.Normalized().ToString().c_str(), kLineEnding);
+
+    const Rectf rect_a(0.0f, 0.0f, 100.0f, 100.0f);
+    const Rectf rect_b(50.0f, 50.0f, 100.0f, 100.0f);
+
+    std::printf("Rect examples:%s", kLineEnding);
+    std::printf("  rect_a         : %s%s", rect_a.ToString().c_str(), kLineEnding);
+    std::printf("  rect_b         : %s%s", rect_b.ToString().c_str(), kLineEnding);
+    std::printf("  area(a)        : %.4f%s", static_cast<double>(rect_a.Area()), kLineEnding);
+    std::printf("  center(a)      : %s%s", rect_a.Center().ToString().c_str(), kLineEnding);
+    std::printf("  intersects     : %s%s",
+                rect_a.Intersects(rect_b) ? "true" : "false", kLineEnding);
+    std::printf("  intersection   : %s%s",
+                rect_a.Intersection(rect_b).ToString().c_str(), kLineEnding);
+    std::printf("  union          : %s%s",
+                rect_a.Union(rect_b).ToString().c_str(), kLineEnding);
+    std::printf("  contains(25,25): %s%s",
+                rect_a.Contains(25.0f, 25.0f) ? "true" : "false", kLineEnding);
+
+    const Sizeu image_size(2400U, 1200U);
+    std::printf("Size examples:%s", kLineEnding);
+    std::printf("  size           : %s%s", image_size.ToString().c_str(), kLineEnding);
+    std::printf("  area           : %u%s", image_size.Area(), kLineEnding);
+    std::printf("  aspect ratio   : %.4f%s",
+                static_cast<double>(image_size.AspectRatio()), kLineEnding);
+
+    Transform2Df transform{};
+    transform.position = Vec2f(100.0f, 50.0f);
+    transform.scale    = Vec2f(2.0f, 2.0f);
+    transform.rotation = kHalfPiF;
+
+    const Vec2f point(1.0f, 0.0f);
+    const Vec2f transformed = transform.Apply(point);
+    const Vec2f inverse_transformed = transform.InverseApply(transformed);
+
+    std::printf("Transform2D examples:%s", kLineEnding);
+    std::printf("  apply          : %s%s", transformed.ToString().c_str(), kLineEnding);
+    std::printf("  inverse apply  : %s%s", inverse_transformed.ToString().c_str(), kLineEnding);
+    std::printf("  round-trip ok  : %s%s",
+                inverse_transformed.IsNearlyEqual(point, 0.001f) ? "true" : "false",
+                kLineEnding);
+
+    std::printf("Geometry examples:%s", kLineEnding);
+    std::printf("  dist p->seg    : %.4f%s",
+                static_cast<double>(DistancePointToSegment(
+                    Vec2f(5.0f, 5.0f), Vec2f(0.0f, 0.0f), Vec2f(10.0f, 0.0f))),
+                kLineEnding);
+    std::printf("  seg intersect  : %s%s",
+                SegmentsIntersect(Vec2f(0.0f, 0.0f), Vec2f(10.0f, 10.0f),
+                                  Vec2f(0.0f, 10.0f), Vec2f(10.0f, 0.0f))
+                    ? "true" : "false",
+                kLineEnding);
+    std::printf("  point in circle: %s%s",
+                PointInCircle(Vec2f(3.0f, 4.0f), Vec2f(0.0f, 0.0f), 5.0f)
+                    ? "true" : "false",
+                kLineEnding);
+
+    std::printf("Math utils examples:%s", kLineEnding);
+    std::printf("  clamp(150,0,100)  : %.4f%s",
+                static_cast<double>(Clamp<float>(150.0f, 0.0f, 100.0f)), kLineEnding);
+    std::printf("  lerp(0,100,0.25)  : %.4f%s",
+                static_cast<double>(Lerp<float>(0.0f, 100.0f, 0.25f)), kLineEnding);
+    std::printf("  smoothstep(0,1,.5): %.4f%s",
+                static_cast<double>(SmoothStep<float>(0.0f, 1.0f, 0.5f)), kLineEnding);
+    std::printf("  deg->rad(180)     : %.4f%s",
+                static_cast<double>(DegToRad<float>(180.0f)), kLineEnding);
+    std::printf("  rad->deg(pi)      : %.4f%s",
+                static_cast<double>(RadToDeg<float>(kPiF)), kLineEnding);
+}
+
 int RunApplication()
 {
     const bool logging_ready = InitializeLogging();
@@ -392,6 +505,7 @@ int RunApplication()
     PrintIdentifierInformation();
     PrintErrorInformation();
     PrintFileHelpersInformation();
+    PrintMathInformation();
 
     EmitStartupLogs();
 
