@@ -6,6 +6,7 @@
 #include "App/ApplicationContext.hpp"
 #include "Core/Error.hpp"
 #include "Core/Result.hpp"
+#include "UI/Menu/ApplicationMenuBuilder.hpp"
 #include "UI/Shell/ShellLayout.hpp"
 #include "UI/Shell/ShellWindow.hpp"
 #include "UI/Splash/SplashScreen.hpp"
@@ -51,6 +52,14 @@ private:
 
     void ConfigureShell();
 
+    void ConfigureMenuBar();
+
+    void HandleMenuCommand(const std::string& identifier);
+
+    ellindyer::ui::menu::ApplicationMenuHandlers BuildMenuHandlers();
+
+    ellindyer::ui::menu::ApplicationMenuState BuildMenuState() const;
+
     void RunSplashStage();
 
     void RunMainLoop();
@@ -64,6 +73,7 @@ private:
     ApplicationContext context_;
     ApplicationState   state_ = ApplicationState::Uninitialized;
     bool               logging_initialized_ = false;
+    bool               should_exit_         = false;
 
     std::unique_ptr<ellindyer::ui::UIHost> ui_host_;
 

@@ -11,7 +11,8 @@ namespace
 constexpr const char* kShellWindowName = "##WorldForgeShell";
 
 constexpr ImGuiWindowFlags kShellWindowFlags =
-    ImGuiWindowFlags_NoTitleBar
+    ImGuiWindowFlags_MenuBar
+    | ImGuiWindowFlags_NoTitleBar
     | ImGuiWindowFlags_NoResize
     | ImGuiWindowFlags_NoMove
     | ImGuiWindowFlags_NoScrollbar
@@ -47,6 +48,7 @@ ShellWindow::~ShellWindow() = default;
 void ShellWindow::Configure(const ShellWindowConfiguration& configuration)
 {
     configuration_ = configuration;
+    menu_bar_visible_ = configuration_.show_menu_bar;
 }
 
 void ShellWindow::Render(const ellindyer::ui::fonts::FontSet& fonts)
@@ -64,6 +66,11 @@ void ShellWindow::Render(const ellindyer::ui::fonts::FontSet& fonts)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 
     ImGui::Begin(kShellWindowName, nullptr, kShellWindowFlags);
+
+    if (menu_bar_visible_)
+    {
+        menu_bar_.Render();
+    }
 
     RenderHeader(fonts);
 
@@ -103,6 +110,26 @@ const std::string& ShellWindow::GetTitle() const noexcept
 const std::string& ShellWindow::GetSubtitle() const noexcept
 {
     return configuration_.subtitle;
+}
+
+ellindyer::ui::menu::MenuBar& ShellWindow::GetMenuBar() noexcept
+{
+    return menu_bar_;
+}
+
+const ellindyer::ui::menu::MenuBar& ShellWindow::GetMenuBar() const noexcept
+{
+    return menu_bar_;
+}
+
+void ShellWindow::SetMenuBarVisible(bool visible) noexcept
+{
+    menu_bar_visible_ = visible;
+}
+
+bool ShellWindow::IsMenuBarVisible() const noexcept
+{
+    return menu_bar_visible_;
 }
 
 void ShellWindow::RenderHeader(const ellindyer::ui::fonts::FontSet& fonts)

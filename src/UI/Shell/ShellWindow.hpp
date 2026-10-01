@@ -6,6 +6,7 @@
 #include <imgui.h>
 
 #include "UI/Fonts/FontManager.hpp"
+#include "UI/Menu/MenuBar.hpp"
 
 namespace ellindyer::ui::shell
 {
@@ -14,8 +15,8 @@ struct ShellWindowConfiguration
 {
     std::string title;
     std::string subtitle;
-    bool        show_menu_bar   = false;
-    bool        show_status_bar = false;
+    bool        show_menu_bar   = true;
+    bool        show_status_bar = true;
     bool        show_dockspace  = false;
 };
 
@@ -42,6 +43,14 @@ public:
 
     [[nodiscard]] const std::string& GetSubtitle() const noexcept;
 
+    [[nodiscard]] ellindyer::ui::menu::MenuBar& GetMenuBar() noexcept;
+
+    [[nodiscard]] const ellindyer::ui::menu::MenuBar& GetMenuBar() const noexcept;
+
+    void SetMenuBarVisible(bool visible) noexcept;
+
+    [[nodiscard]] bool IsMenuBarVisible() const noexcept;
+
 private:
     void RenderHeader(const ellindyer::ui::fonts::FontSet& fonts);
 
@@ -49,9 +58,11 @@ private:
 
     void RenderStatusLine(const ellindyer::ui::fonts::FontSet& fonts);
 
-    ShellWindowConfiguration configuration_{};
-    float                   last_frame_time_ms_ = 0.0f;
-    float                   last_frames_per_second_ = 0.0f;
+    ShellWindowConfiguration          configuration_{};
+    ellindyer::ui::menu::MenuBar      menu_bar_{};
+    float                             last_frame_time_ms_ = 0.0f;
+    float                             last_frames_per_second_ = 0.0f;
+    bool                              menu_bar_visible_ = true;
 };
 
 } // namespace ellindyer::ui::shell

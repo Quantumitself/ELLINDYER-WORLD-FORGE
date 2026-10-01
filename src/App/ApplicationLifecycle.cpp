@@ -13,6 +13,7 @@
 #include "Core/Logger.hpp"
 #include "Core/LoggerExtensions.hpp"
 #include "Core/LogMacros.hpp"
+#include "UI/Menu/ApplicationMenuBuilder.hpp"
 
 namespace ellindyer::app
 {
@@ -79,6 +80,7 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
     }
 
     ConfigureShell();
+    ConfigureMenuBar();
 
     state_ = ApplicationState::Running;
     return Result<void>{};
@@ -248,7 +250,7 @@ void ApplicationLifecycle::ConfigureShell()
     ellindyer::ui::shell::ShellWindowConfiguration shell_configuration{};
     shell_configuration.title           = context_.GetApplicationInfo().name;
     shell_configuration.subtitle        = context_.GetApplicationInfo().tagline;
-    shell_configuration.show_menu_bar   = false;
+    shell_configuration.show_menu_bar   = true;
     shell_configuration.show_status_bar = true;
     shell_configuration.show_dockspace  = false;
 
@@ -290,6 +292,184 @@ void ApplicationLifecycle::ConfigureShell()
     shell_layout_.GetStatusBar().SetLeftText("Ready");
     shell_layout_.GetStatusBar().SetMiddleText("");
     shell_layout_.GetStatusBar().SetRightText("");
+}
+
+void ApplicationLifecycle::ConfigureMenuBar()
+{
+    ellindyer::ui::menu::MenuBar& menu_bar = shell_window_.GetMenuBar();
+
+    menu_bar.SetCommandHandler(
+        [this](const std::string& identifier)
+        {
+            HandleMenuCommand(identifier);
+        });
+
+    const ellindyer::ui::menu::ApplicationMenuState state = BuildMenuState();
+    const ellindyer::ui::menu::ApplicationMenuHandlers handlers = BuildMenuHandlers();
+
+    ellindyer::ui::menu::ApplicationMenuBuilder::Build(menu_bar, state, handlers);
+}
+
+void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
+{
+    ELLINDYER_LOG_INFO("Menu command: " + identifier);
+
+    ellindyer::ui::menu::MenuBar& menu_bar = shell_window_.GetMenuBar();
+
+    if (identifier == "view.toggle_project_explorer")
+    {
+        const bool next = !shell_layout_.IsProjectExplorerVisible();
+        shell_layout_.SetProjectExplorerVisible(next);
+        menu_bar.SetItemChecked("View", identifier, next);
+        return;
+    }
+
+    if (identifier == "view.toggle_workspace")
+    {
+        const bool next = !shell_layout_.IsWorkspaceVisible();
+        shell_layout_.SetWorkspaceVisible(next);
+        menu_bar.SetItemChecked("View", identifier, next);
+        return;
+    }
+
+    if (identifier == "view.toggle_inspector")
+    {
+        const bool next = !shell_layout_.IsInspectorVisible();
+        shell_layout_.SetInspectorVisible(next);
+        menu_bar.SetItemChecked("View", identifier, next);
+        return;
+    }
+
+    if (identifier == "view.toggle_status_bar")
+    {
+        const bool next = !shell_layout_.IsStatusBarVisible();
+        shell_layout_.SetStatusBarVisible(next);
+        menu_bar.SetItemChecked("View", identifier, next);
+        return;
+    }
+
+    if (identifier == "view.reset_layout")
+    {
+        shell_layout_.ResetVisibility();
+
+        menu_bar.SetItemChecked("View", "view.toggle_project_explorer", true);
+        menu_bar.SetItemChecked("View", "view.toggle_workspace", true);
+        menu_bar.SetItemChecked("View", "view.toggle_inspector", true);
+        menu_bar.SetItemChecked("View", "view.toggle_status_bar", true);
+
+        ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
+        layout_configuration.panels.left_width_fraction  = 0.20f;
+        layout_configuration.panels.right_width_fraction = 0.22f;
+        layout_configuration.panels.left_min_width       = 220.0f;
+        layout_configuration.panels.right_min_width      = 260.0f;
+        layout_configuration.panels.center_min_width     = 320.0f;
+        layout_configuration.panels.panel_spacing        = 8.0f;
+        shell_layout_.Configure(layout_configuration);
+        return;
+    }
+
+    if (identifier == "file.exit")
+    {
+        should_exit_ = true;
+        if (ui_host_)
+        {
+            ui_host_->RequestClose();
+        }
+        return;
+    }
+}
+
+ellindyer::ui::menu::ApplicationMenuHandlers ApplicationLifecycle::BuildMenuHandlers()
+{
+    ellindyer::ui::menu::ApplicationMenuHandlers handlers{};
+
+    handlers.on_exit_application = [this]()
+    {
+        should_exit_ = true;
+        if (ui_host_)
+        {
+            ui_host_->RequestClose();
+        }
+    };
+
+    handlers.on_toggle_project_explorer = [this]()
+    {
+        HandleMenuCommand("view.toggle_project_explorer");
+    };
+
+    handlers.on_toggle_workspace = [this]()
+    {
+        HandleMenuCommand("view.toggle_workspace");
+    };
+
+    handlers.on_toggle_inspector = [this]()
+    {
+        HandleMenuCommand("view.toggle_inspector");
+    };
+
+    handlers.on_toggle_status_bar = [this]()
+    {
+        HandleMenuCommand("view.toggle_status_bar");
+    };
+
+    handlers.on_reset_layout = [this]()
+    {
+        HandleMenuCommand("view.reset_layout");
+    };
+
+    const auto log_only = [](const char* identifier)
+    {
+        return [identifier]()
+        {
+            ELLINDYER_LOG_INFO(std::string("Menu action: ") + identifier);
+        };
+    };
+
+    handlers.on_new_project       = log_only("file.new_project");
+    handlers.on_open_project      = log_only("file.open_project");
+    handlers.on_save_project      = log_only("file.save_project");
+    handlers.on_save_project_as   = log_only("file.save_project_as");
+    handlers.on_close_project     = log_only("file.close_project");
+
+    handlers.on_undo              = log_only("edit.undo");
+    handlers.on_redo              = log_only("edit.redo");
+    handlers.on_cut               = log_only("edit.cut");
+    handlers.on_copy              = log_only("edit.copy");
+    handlers.on_paste             = log_only("edit.paste");
+    handlers.on_delete_selection  = log_only("edit.delete");
+
+    handlers.on_new_schema        = log_only("project.new_schema");
+    handlers.on_new_entity        = log_only("project.new_entity");
+    handlers.on_new_relationship  = log_only("project.new_relationship");
+    handlers.on_new_map           = log_only("project.new_map");
+    handlers.on_import_asset      = log_only("project.import_asset");
+
+    handlers.on_validate_project  = log_only("tools.validate_project");
+    handlers.on_open_diagnostics  = log_only("tools.open_diagnostics");
+    handlers.on_open_search       = log_only("tools.open_search");
+
+    handlers.on_export_universal  = log_only("export.universal");
+    handlers.on_export_unreal     = log_only("export.unreal");
+    handlers.on_export_unity      = log_only("export.unity");
+    handlers.on_export_godot      = log_only("export.godot");
+
+    handlers.on_show_about        = log_only("help.about");
+    handlers.on_show_documentation = log_only("help.documentation");
+
+    return handlers;
+}
+
+ellindyer::ui::menu::ApplicationMenuState ApplicationLifecycle::BuildMenuState() const
+{
+    ellindyer::ui::menu::ApplicationMenuState state{};
+    state.has_project           = false;
+    state.has_selection         = false;
+    state.has_clipboard         = false;
+    state.show_project_explorer = shell_layout_.IsProjectExplorerVisible();
+    state.show_workspace        = shell_layout_.IsWorkspaceVisible();
+    state.show_inspector        = shell_layout_.IsInspectorVisible();
+    state.show_status_bar       = shell_layout_.IsStatusBarVisible();
+    return state;
 }
 
 void ApplicationLifecycle::RunSplashStage()
@@ -345,14 +525,14 @@ void ApplicationLifecycle::RunSplashStage()
 
 void ApplicationLifecycle::RunMainLoop()
 {
-    while (!ui_host_->ShouldClose())
+    while (!ui_host_->ShouldClose() && !should_exit_)
     {
         if (!ui_host_->PumpMessages())
         {
             break;
         }
 
-        if (ui_host_->ShouldClose())
+        if (ui_host_->ShouldClose() || should_exit_)
         {
             break;
         }

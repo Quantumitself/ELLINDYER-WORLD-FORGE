@@ -42,17 +42,34 @@ public:
 
     [[nodiscard]] ellindyer::ui::panels::StatusBarPanel& GetStatusBar() noexcept;
 
+    void SetProjectExplorerVisible(bool visible) noexcept;
+    void SetWorkspaceVisible(bool visible) noexcept;
+    void SetInspectorVisible(bool visible) noexcept;
+    void SetStatusBarVisible(bool visible) noexcept;
+
+    [[nodiscard]] bool IsProjectExplorerVisible() const noexcept;
+    [[nodiscard]] bool IsWorkspaceVisible() const noexcept;
+    [[nodiscard]] bool IsInspectorVisible() const noexcept;
+    [[nodiscard]] bool IsStatusBarVisible() const noexcept;
+
+    void ResetVisibility() noexcept;
+
 private:
     void RenderBody(const ellindyer::ui::fonts::FontSet& fonts);
 
     void RenderStatusBar(const ellindyer::ui::fonts::FontSet& fonts);
 
     ShellLayoutConfiguration                         configuration_{};
-    ellindyer::ui::layout::PanelLayout               panel_layout_{};
+    ellindyer::ui::layout::PanelLayout               panel_layout_;
     ellindyer::ui::panels::ProjectExplorerPanel      project_explorer_;
     ellindyer::ui::panels::WorkspacePanel            workspace_;
     ellindyer::ui::panels::InspectorPanel            inspector_;
     ellindyer::ui::panels::StatusBarPanel            status_bar_;
+
+    bool project_explorer_visible_ = true;
+    bool workspace_visible_        = true;
+    bool inspector_visible_        = true;
+    bool status_bar_visible_       = true;
 };
 
 } // namespace ellindyer::ui::shell
