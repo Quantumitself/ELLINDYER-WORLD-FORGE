@@ -1,10 +1,15 @@
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 
+#include "Core/ApplicationInfo.hpp"
+#include "Core/ApplicationPaths.hpp"
+#include "Core/BuildInfo.hpp"
+#include "Core/Version.hpp"
 #include "ThirdPartyProbe.hpp"
 
 #if defined(_WIN32)
-#include <windows.h>
+#    include <windows.h>
 #endif
 
 namespace
@@ -16,18 +21,67 @@ constexpr const char* kLineEnding = "\r\n";
 constexpr const char* kLineEnding = "\n";
 #endif
 
-constexpr int kVersionMajor = ELLINDYER_WORLD_FORGE_VERSION_MAJOR;
-constexpr int kVersionMinor = ELLINDYER_WORLD_FORGE_VERSION_MINOR;
-constexpr int kVersionPatch = ELLINDYER_WORLD_FORGE_VERSION_PATCH;
-
-void PrintBanner()
+void PrintApplicationBanner()
 {
-    std::printf("Ellindyer World Forge %d.%d.%d%s",
-                kVersionMajor,
-                kVersionMinor,
-                kVersionPatch,
+    const ellindyer::core::ApplicationInfo info = ellindyer::core::GetApplicationInfo();
+    std::printf("%s %s%s",
+                info.name.c_str(),
+                info.version.c_str(),
                 kLineEnding);
-    std::printf("World & Game Design Studio%s", kLineEnding);
+    std::printf("%s%s", info.tagline.c_str(), kLineEnding);
+    std::printf("Organization: %s%s", info.organization.c_str(), kLineEnding);
+}
+
+void PrintBuildInformation()
+{
+    const ellindyer::core::BuildInfo info = ellindyer::core::GetBuildInfo();
+    std::printf("Build configuration : %s%s",
+                std::string(ellindyer::core::GetBuildConfigurationName(info.configuration)).c_str(),
+                kLineEnding);
+    std::printf("Compiler            : %.*s %.*s%s",
+                static_cast<int>(info.compiler_name.size()),
+                info.compiler_name.data(),
+                static_cast<int>(info.compiler_version.size()),
+                info.compiler_version.data(),
+                kLineEnding);
+    std::printf("Platform            : %.*s %.*s%s",
+                static_cast<int>(info.platform.size()),
+                info.platform.data(),
+                static_cast<int>(info.architecture.size()),
+                info.architecture.data(),
+                kLineEnding);
+    std::printf("C++ standard        : %.*s%s",
+                static_cast<int>(info.cpp_standard.size()),
+                info.cpp_standard.data(),
+                kLineEnding);
+    std::printf("Build date          : %.*s %.*s%s",
+                static_cast<int>(info.build_date.size()),
+                info.build_date.data(),
+                static_cast<int>(info.build_time.size()),
+                info.build_time.data(),
+                kLineEnding);
+}
+
+void PrintPathInformation()
+{
+    const std::filesystem::path exe_dir = ellindyer::core::ApplicationPaths::GetExecutableDirectory();
+    const std::filesystem::path res_dir = ellindyer::core::ApplicationPaths::GetResourcesDirectory();
+    const std::filesystem::path usr_dir = ellindyer::core::ApplicationPaths::GetUserDataDirectory();
+
+    std::printf("Executable directory: %s%s",
+                exe_dir.string().c_str(),
+                kLineEnding);
+    std::printf("Resources directory : %s%s",
+                res_dir.string().c_str(),
+                kLineEnding);
+    std::printf("User data directory : %s%s",
+                usr_dir.string().c_str(),
+                kLineEnding);
+
+    const bool user_dirs_ready = ellindyer::core::ApplicationPaths::EnsureUserDirectoriesExist();
+    std::printf("User directories    : %s%s",
+                user_dirs_ready ? "ready" : "unavailable",
+                kLineEnding);
 }
 
 void PrintThirdPartyStatus()
@@ -52,7 +106,9 @@ void PrintThirdPartyStatus()
 
 int RunApplication()
 {
-    PrintBanner();
+    PrintApplicationBanner();
+    PrintBuildInformation();
+    PrintPathInformation();
     PrintThirdPartyStatus();
     std::fflush(stdout);
     return EXIT_SUCCESS;

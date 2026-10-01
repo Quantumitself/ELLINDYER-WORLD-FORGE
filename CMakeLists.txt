@@ -110,11 +110,24 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party"
 set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/main.cpp"
     "${ELLINDYER_SOURCES_DIR}/ThirdPartyProbe.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/Version.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/BuildInfo.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/ApplicationPaths.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/ApplicationInfo.cpp"
 )
 
 add_executable(${ELLINDYER_APP_TARGET}
     ${ELLINDYER_APP_SOURCES}
 )
+
+if(CMAKE_CONFIGURATION_TYPES)
+    foreach(cfg IN ITEMS Debug Release RelWithDebInfo MinSizeRel)
+        string(TOUPPER "${cfg}" cfg_upper)
+        target_compile_definitions(${ELLINDYER_APP_TARGET} PRIVATE
+            $<$<CONFIG:${cfg}>:ELLINDYER_BUILD_${cfg_upper}=1>
+        )
+    endforeach()
+endif()
 
 target_include_directories(${ELLINDYER_APP_TARGET}
     PRIVATE
@@ -127,6 +140,16 @@ target_compile_definitions(${ELLINDYER_APP_TARGET}
         ELLINDYER_WORLD_FORGE_VERSION_MINOR=${ELLINDYER_WORLD_FORGE_VERSION_MINOR}
         ELLINDYER_WORLD_FORGE_VERSION_PATCH=${ELLINDYER_WORLD_FORGE_VERSION_PATCH}
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(${ELLINDYER_APP_TARGET} PRIVATE ELLINDYER_BUILD_DEBUG=1)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_definitions(${ELLINDYER_APP_TARGET} PRIVATE ELLINDYER_BUILD_RELEASE=1)
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    target_compile_definitions(${ELLINDYER_APP_TARGET} PRIVATE ELLINDYER_BUILD_RELWITHDEBINFO=1)
+elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    target_compile_definitions(${ELLINDYER_APP_TARGET} PRIVATE ELLINDYER_BUILD_MINSIZEREL=1)
+endif()
 
 target_link_libraries(${ELLINDYER_APP_TARGET}
     PRIVATE
