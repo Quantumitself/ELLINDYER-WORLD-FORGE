@@ -21,9 +21,7 @@ public:
     void Render(const ellindyer::ui::fonts::FontSet& fonts);
 
     void SetLeftText(std::string text);
-
     void SetMiddleText(std::string text);
-
     void SetRightText(std::string text);
 
 private:

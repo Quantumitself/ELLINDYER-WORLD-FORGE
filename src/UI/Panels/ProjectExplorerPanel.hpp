@@ -4,8 +4,6 @@
 #include <vector>
 
 #include "UI/Fonts/FontManager.hpp"
-#include "UI/Layout/Panel.hpp"
-#include "UI/Layout/PanelLayout.hpp"
 
 namespace ellindyer::ui::panels
 {
@@ -21,18 +19,15 @@ public:
     ProjectExplorerPanel(ProjectExplorerPanel&&) noexcept = delete;
     ProjectExplorerPanel& operator=(ProjectExplorerPanel&&) noexcept = delete;
 
-    void Render(const ellindyer::ui::fonts::FontSet& fonts,
-                const ellindyer::ui::layout::PanelLayoutMetrics& metrics);
+    void Render(const ellindyer::ui::fonts::FontSet& fonts);
 
     void SetProjectName(std::string name);
-
     void AddRootEntry(std::string entry);
-
     void Clear();
 
 private:
-    std::string               project_name_;
-    std::vector<std::string>  root_entries_;
+    std::string              project_name_;
+    std::vector<std::string> root_entries_;
 };
 
 } // namespace ellindyer::ui::panels

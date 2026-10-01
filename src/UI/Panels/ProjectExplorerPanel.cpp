@@ -2,74 +2,69 @@
 
 #include <imgui.h>
 
+#include "UI/ImGui/ImGuiCompat.hpp"
+
 namespace ellindyer::ui::panels
 {
 
 namespace
 {
-
 const char* kDefaultProjectLabel = "No project loaded";
-
+ImVec4 ColorMuted()   { return ImVec4(0.45f, 0.45f, 0.45f, 1.00f); }
+ImVec4 ColorPrimary() { return ImVec4(1.00f, 1.00f, 1.00f, 1.00f); }
 } // namespace
 
 ProjectExplorerPanel::ProjectExplorerPanel() = default;
-
 ProjectExplorerPanel::~ProjectExplorerPanel() = default;
 
-void ProjectExplorerPanel::Render(
-    const ellindyer::ui::fonts::FontSet& fonts,
-    const ellindyer::ui::layout::PanelLayoutMetrics& metrics)
+void ProjectExplorerPanel::Render(const ellindyer::ui::fonts::FontSet& fonts)
 {
-    using ellindyer::ui::layout::Panel;
-    using ellindyer::ui::layout::PanelStyle;
-
-    Panel panel("ProjectExplorer", "Project Explorer");
-
-    PanelStyle style{};
-    panel.SetStyle(style);
-    panel.SetMinWidth(metrics.left_width);
-
-    panel.BeginPanel(metrics.left_width, metrics.panel_height);
-
-    panel.RenderHeader(fonts);
+    if (!ImGui::Begin("Project Explorer"))
+    {
+        ImGui::End();
+        return;
+    }
 
     if (project_name_.empty())
     {
-        panel.RenderTextMuted(fonts, kDefaultProjectLabel);
-        panel.RenderTextMuted(fonts, "Open or create a project to populate the tree.");
+        ImGui::PushStyleColor(ImGuiCol_Text, ColorMuted());
+        ImGui::TextUnformatted(kDefaultProjectLabel);
+        ImGui::TextUnformatted("Open or create a project to populate the tree.");
+        ImGui::PopStyleColor();
     }
     else
     {
-        panel.RenderText(fonts, project_name_);
-        panel.RenderSeparator();
+        ImGui::PushStyleColor(ImGuiCol_Text, ColorPrimary());
+        ImGui::TextUnformatted(project_name_.c_str());
+        ImGui::PopStyleColor();
+        ImGui::Separator();
+        ImGui::Spacing();
 
         if (root_entries_.empty())
         {
-            panel.RenderTextMuted(fonts, "(empty)");
+            ImGui::PushStyleColor(ImGuiCol_Text, ColorMuted());
+            ImGui::TextUnformatted("(empty)");
+            ImGui::PopStyleColor();
         }
         else
         {
             for (const std::string& entry : root_entries_)
             {
-                panel.RenderText(fonts, entry);
+                ImGui::PushStyleColor(ImGuiCol_Text, ColorMuted());
+                ImGui::TextUnformatted(entry.c_str());
+                ImGui::PopStyleColor();
             }
         }
     }
 
-    panel.EndPanel();
+    ImGui::End();
 }
 
-void ProjectExplorerPanel::SetProjectName(std::string name)
-{
-    project_name_ = std::move(name);
-}
+void ProjectExplorerPanel::SetProjectName(std::string name) { project_name_ = std::move(name); }
 
 void ProjectExplorerPanel::AddRootEntry(std::string entry)
 {
-    if (entry.empty())
-    {
-        return;
-    }
+    if (entry.empty()) return;
     root_entries_.push_back(std::move(entry));
 }
 

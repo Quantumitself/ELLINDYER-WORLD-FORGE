@@ -4,8 +4,6 @@
 #include <vector>
 
 #include "UI/Fonts/FontManager.hpp"
-#include "UI/Layout/Panel.hpp"
-#include "UI/Layout/PanelLayout.hpp"
 
 namespace ellindyer::ui::panels
 {
@@ -21,17 +19,12 @@ public:
     InspectorPanel(InspectorPanel&&) noexcept = delete;
     InspectorPanel& operator=(InspectorPanel&&) noexcept = delete;
 
-    void Render(const ellindyer::ui::fonts::FontSet& fonts,
-                const ellindyer::ui::layout::PanelLayoutMetrics& metrics);
+    void Render(const ellindyer::ui::fonts::FontSet& fonts);
 
     void SetSelectionTitle(std::string title);
-
     void SetSelectionSubtitle(std::string subtitle);
-
     void AddSection(std::string section_title);
-
     void AddProperty(std::string key, std::string value);
-
     void Clear();
 
 private:

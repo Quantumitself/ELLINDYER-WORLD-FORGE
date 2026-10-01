@@ -256,15 +256,7 @@ void ApplicationLifecycle::ConfigureShell()
 
     shell_window_.Configure(shell_configuration);
 
-    ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
-    layout_configuration.panels.left_width_fraction  = 0.20f;
-    layout_configuration.panels.right_width_fraction = 0.22f;
-    layout_configuration.panels.left_min_width       = 220.0f;
-    layout_configuration.panels.right_min_width      = 260.0f;
-    layout_configuration.panels.center_min_width     = 320.0f;
-    layout_configuration.panels.panel_spacing        = 8.0f;
-
-    shell_layout_.Configure(layout_configuration);
+    shell_layout_.Configure();
 
     shell_layout_.GetProjectExplorer().SetProjectName("Ellindyer World Forge");
     shell_layout_.GetProjectExplorer().AddRootEntry("World");
@@ -357,14 +349,7 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
         menu_bar.SetItemChecked("View", "view.toggle_inspector", true);
         menu_bar.SetItemChecked("View", "view.toggle_status_bar", true);
 
-        ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
-        layout_configuration.panels.left_width_fraction  = 0.20f;
-        layout_configuration.panels.right_width_fraction = 0.22f;
-        layout_configuration.panels.left_min_width       = 220.0f;
-        layout_configuration.panels.right_min_width      = 260.0f;
-        layout_configuration.panels.center_min_width     = 320.0f;
-        layout_configuration.panels.panel_spacing        = 8.0f;
-        shell_layout_.Configure(layout_configuration);
+        shell_layout_.ResetLayout();
         return;
     }
 
@@ -556,13 +541,18 @@ void ApplicationLifecycle::RenderMainFrame()
 
     const ImGuiIO& io = ImGui::GetIO();
 
+    shell_layout_.GetStatusBar().SetLeftText("Ready");
     shell_layout_.GetStatusBar().SetMiddleText(
         "Frame: " + std::to_string(static_cast<int>(io.DeltaTime * 1000.0f)) + " ms");
     shell_layout_.GetStatusBar().SetRightText(
         "FPS: " + std::to_string(static_cast<int>(io.Framerate)));
 
+    // Shell header first (top of viewport)
     shell_window_.Render(fonts);
-    shell_layout_.Render(fonts);
+
+    // DockSpace host with docked panels
+    shell_layout_.Render(fonts, shell_window_.GetConsumedHeight());
+
 }
 
 void ApplicationLifecycle::EmitStartupDiagnostics()
