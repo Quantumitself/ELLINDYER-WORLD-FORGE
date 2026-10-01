@@ -37,19 +37,54 @@ target_include_directories(ellindyer_stb
 )
 
 # -----------------------------------------------------------------------------
-# Dear ImGui
+# Dear ImGui (compiled as an internal static library)
 # -----------------------------------------------------------------------------
-add_library(ellindyer_imgui INTERFACE)
-target_include_directories(ellindyer_imgui
-    INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends"
-)
-target_compile_definitions(ellindyer_imgui
-    INTERFACE
-        IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
-        IMGUI_DISABLE_OBSOLETE_KEYIO=1
-)
+set(ELLINDYER_IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/imgui")
+
+if(EXISTS "${ELLINDYER_IMGUI_DIR}/imgui.cpp")
+    add_library(ellindyer_imgui STATIC
+        "${ELLINDYER_IMGUI_DIR}/imgui.cpp"
+        "${ELLINDYER_IMGUI_DIR}/imgui_draw.cpp"
+        "${ELLINDYER_IMGUI_DIR}/imgui_tables.cpp"
+        "${ELLINDYER_IMGUI_DIR}/imgui_widgets.cpp"
+        "${ELLINDYER_IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+        "${ELLINDYER_IMGUI_DIR}/backends/imgui_impl_dx11.cpp"
+    )
+
+    target_include_directories(ellindyer_imgui
+        PUBLIC
+            "${ELLINDYER_IMGUI_DIR}"
+            "${ELLINDYER_IMGUI_DIR}/backends"
+    )
+
+    target_compile_definitions(ellindyer_imgui
+        PUBLIC
+            IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
+            IMGUI_DISABLE_OBSOLETE_KEYIO=1
+    )
+
+    if(WIN32)
+        target_link_libraries(ellindyer_imgui PUBLIC d3d11 dxgi)
+    endif()
+
+    set_target_properties(ellindyer_imgui PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    )
+else()
+    add_library(ellindyer_imgui INTERFACE)
+    target_include_directories(ellindyer_imgui
+        INTERFACE
+            "${ELLINDYER_IMGUI_DIR}"
+            "${ELLINDYER_IMGUI_DIR}/backends"
+    )
+    target_compile_definitions(ellindyer_imgui
+        INTERFACE
+            IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
+            IMGUI_DISABLE_OBSOLETE_KEYIO=1
+    )
+endif()
 
 # -----------------------------------------------------------------------------
 # Catch2 (single-header, v2)

@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <string>
 
 #include "App/Application.hpp"
 

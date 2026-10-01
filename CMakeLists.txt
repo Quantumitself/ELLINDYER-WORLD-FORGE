@@ -113,6 +113,11 @@ set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/App/ApplicationContext.cpp"
     "${ELLINDYER_SOURCES_DIR}/App/ApplicationLifecycle.cpp"
     "${ELLINDYER_SOURCES_DIR}/App/Application.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Platform/PlatformWindow.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Graphics/DirectX11Context.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/ImGui/ImGuiLayer.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/ImGui/ImGuiWin32MessageHook.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/UIHost.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/Version.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/BuildInfo.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/ApplicationPaths.cpp"
@@ -181,13 +186,19 @@ target_link_libraries(${ELLINDYER_APP_TARGET}
 )
 
 if(WIN32)
-    target_link_libraries(${ELLINDYER_APP_TARGET} PRIVATE shell32 ole32)
+    target_link_libraries(${ELLINDYER_APP_TARGET} PRIVATE shell32 ole32 user32 gdi32)
 endif()
 
 set_target_properties(${ELLINDYER_APP_TARGET} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     OUTPUT_NAME "EllindyerWorldForge"
 )
+
+if(WIN32)
+    set_target_properties(${ELLINDYER_APP_TARGET} PROPERTIES
+        WIN32_EXECUTABLE TRUE
+    )
+endif()
 
 # Disable MSBuild's vcpkg auto-integration for this target.
 if(MSVC)
@@ -197,13 +208,6 @@ if(MSVC)
         VS_GLOBAL_VcpkgAutoLink "false"
         VS_GLOBAL_VcpkgConfiguration "Debug"
         VS_GLOBAL_VcpkgEnableLock "false"
-    )
-endif()
-
-if(MSVC)
-    target_link_options(${ELLINDYER_APP_TARGET} PRIVATE
-        /SUBSYSTEM:CONSOLE
-        /ENTRY:wWinMainCRTStartup
     )
 endif()
 

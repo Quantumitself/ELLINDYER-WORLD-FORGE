@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 #include "App/ApplicationContext.hpp"
 #include "Core/Error.hpp"
 #include "Core/Result.hpp"
+#include "UI/UIHost.hpp"
 
 namespace ellindyer::app
 {
@@ -42,6 +44,10 @@ public:
 private:
     [[nodiscard]] ellindyer::core::Result<void> InitializeLogging();
 
+    [[nodiscard]] ellindyer::core::Result<void> InitializeUI();
+
+    void RunMainLoop();
+
     void EmitStartupDiagnostics();
 
     void EmitShutdownDiagnostics();
@@ -49,6 +55,8 @@ private:
     ApplicationContext context_;
     ApplicationState   state_ = ApplicationState::Uninitialized;
     bool               logging_initialized_ = false;
+
+    std::unique_ptr<ellindyer::ui::UIHost> ui_host_;
 };
 
 } // namespace ellindyer::app

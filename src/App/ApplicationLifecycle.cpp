@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <string>
 
+#include <imgui.h>
+
 #include "Core/Error.hpp"
 #include "Core/ErrorCode.hpp"
 #include "Core/LogBootstrap.hpp"
@@ -24,13 +26,55 @@ constexpr const char* kLineEnding = "\r\n";
 constexpr const char* kLineEnding = "\n";
 #endif
 
-constexpr const char* kLogFileName     = "EllindyerWorldForge.log";
-constexpr std::size_t kLogMaxSizeBytes = 4U * 1024U * 1024U;
-constexpr std::size_t kLogMaxFiles     = 4;
+constexpr const char*  kLogFileName      = "EllindyerWorldForge.log";
+constexpr std::size_t  kLogMaxSizeBytes  = 4U * 1024U * 1024U;
+constexpr std::size_t  kLogMaxFiles      = 4;
+constexpr std::uint32_t kDefaultWindowWidth  = 1400U;
+constexpr std::uint32_t kDefaultWindowHeight = 900U;
+
+void RenderFramePlaceholder()
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
+    ImGui::SetNextWindowSize(io.DisplaySize);
+    constexpr ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoTitleBar
+        | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoMove
+        | ImGuiWindowFlags_NoScrollbar
+        | ImGuiWindowFlags_NoScrollWithMouse
+        | ImGuiWindowFlags_NoCollapse
+        | ImGuiWindowFlags_NoSavedSettings
+        | ImGuiWindowFlags_NoBringToFrontOnFocus
+        | ImGuiWindowFlags_NoNavFocus
+        | ImGuiWindowFlags_NoBackground;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f, 24.0f));
+    ImGui::Begin("##WorldForgeFrame", nullptr, flags);
+
+    ImGui::TextUnformatted("Ellindyer World Forge");
+    ImGui::Separator();
+    ImGui::TextUnformatted("UI framework bootstrapped.");
+    ImGui::TextUnformatted("DirectX 11 rendering active.");
+    ImGui::TextUnformatted("Dear ImGui context initialized.");
+    ImGui::Text("Client area: %ux%u",
+                static_cast<unsigned>(io.DisplaySize.x),
+                static_cast<unsigned>(io.DisplaySize.y));
+    ImGui::Text("Frame time: %.3f ms (%.1f FPS)",
+                static_cast<double>(io.DeltaTime) * 1000.0,
+                io.Framerate > 0.0f ? static_cast<double>(io.Framerate) : 0.0);
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
 
 } // namespace
 
-ApplicationLifecycle::ApplicationLifecycle() = default;
+ApplicationLifecycle::ApplicationLifecycle()
+    : ui_host_(std::make_unique<ellindyer::ui::UIHost>())
+{
+}
 
 ApplicationLifecycle::~ApplicationLifecycle()
 {
@@ -42,7 +86,6 @@ ApplicationLifecycle::~ApplicationLifecycle()
 
 ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
 {
-    using ellindyer::core::Error;
     using ellindyer::core::ErrorCode;
     using ellindyer::core::MakeError;
     using ellindyer::core::Result;
@@ -64,6 +107,14 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
 
     EmitStartupDiagnostics();
 
+    const Result<void> ui_result = InitializeUI();
+    if (ui_result.HasError())
+    {
+        Shutdown();
+        state_ = ApplicationState::Uninitialized;
+        return ui_result;
+    }
+
     state_ = ApplicationState::Running;
     return Result<void>{};
 }
@@ -80,13 +131,18 @@ ellindyer::core::Result<int> ApplicationLifecycle::Run()
                                      "Application is not in the Running state."));
     }
 
+    if (!ui_host_ || !ui_host_->IsInitialized())
+    {
+        return Result<int>(MakeError(ErrorCode::InvalidState,
+                                     "UI host is not initialized."));
+    }
+
     ELLINDYER_LOG_INFO("Application main loop entered");
+    ui_host_->ShowWindow();
 
-    const std::string summary = ellindyer::core::GetApplicationInfoSummary();
-    std::printf("%s%s", summary.c_str(), kLineEnding);
-    std::fflush(stdout);
+    RunMainLoop();
 
-    ELLINDYER_LOG_INFO("Application main loop completed");
+    ELLINDYER_LOG_INFO("Application main loop exited");
 
     return Result<int>(0);
 }
@@ -99,6 +155,11 @@ void ApplicationLifecycle::Shutdown()
     }
 
     state_ = ApplicationState::ShuttingDown;
+
+    if (ui_host_)
+    {
+        ui_host_->Shutdown();
+    }
 
     EmitShutdownDiagnostics();
 
@@ -154,6 +215,64 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeLogging()
 
     logging_initialized_ = true;
     return Result<void>{};
+}
+
+ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
+{
+    using ellindyer::core::ErrorCode;
+    using ellindyer::core::MakeError;
+    using ellindyer::core::Result;
+
+    if (!ui_host_)
+    {
+        return Result<void>(MakeError(ErrorCode::InvalidState,
+                                      "UI host instance is not available."));
+    }
+
+    ellindyer::ui::UIHostDescription description{};
+    description.window_title  = L"Ellindyer World Forge";
+    description.window_width  = kDefaultWindowWidth;
+    description.window_height = kDefaultWindowHeight;
+    description.vsync         = true;
+    description.centered      = true;
+    description.resizable     = true;
+
+    const Result<void> ui_result = ui_host_->Initialize(description);
+    if (ui_result.HasError())
+    {
+        ELLINDYER_LOG_ERROR(ui_result.GetError().ToDiagnosticString());
+        return ui_result;
+    }
+
+    ELLINDYER_LOG_INFO("UI host initialized");
+    return Result<void>{};
+}
+
+void ApplicationLifecycle::RunMainLoop()
+{
+    while (!ui_host_->ShouldClose())
+    {
+        if (!ui_host_->PumpMessages())
+        {
+            break;
+        }
+
+        if (ui_host_->ShouldClose())
+        {
+            break;
+        }
+
+        ui_host_->BeginFrame();
+        RenderFramePlaceholder();
+        ui_host_->EndFrame();
+
+        const ellindyer::core::Result<void> present_result = ui_host_->Present();
+        if (present_result.HasError())
+        {
+            ELLINDYER_LOG_ERROR(present_result.GetError().ToDiagnosticString());
+            ui_host_->RequestClose();
+        }
+    }
 }
 
 void ApplicationLifecycle::EmitStartupDiagnostics()
