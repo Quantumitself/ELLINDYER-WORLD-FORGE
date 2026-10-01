@@ -5,6 +5,9 @@
 #include "Core/ApplicationInfo.hpp"
 #include "Core/ApplicationPaths.hpp"
 #include "Core/BuildInfo.hpp"
+#include "Core/Identifier.hpp"
+#include "Core/IdentifierFormatter.hpp"
+#include "Core/IdentifierGenerator.hpp"
 #include "Core/Version.hpp"
 #include "ThirdPartyProbe.hpp"
 
@@ -104,12 +107,55 @@ void PrintThirdPartyStatus()
                 kLineEnding);
 }
 
+void PrintIdentifierInformation()
+{
+    using ellindyer::core::Identifier;
+    using ellindyer::core::IdentifierFormatter;
+    using ellindyer::core::IdentifierGenerator;
+
+    const Identifier generated = IdentifierGenerator::NewIdentifier();
+    const Identifier deterministic = IdentifierGenerator::DeterministicIdentifier(0x9e3779b97f4a7c15ULL);
+    const Identifier from_text = ellindyer::core::MakeIdentifier("NPC-000001");
+    const Identifier nil = Identifier::Nil();
+
+    std::printf("Identifier examples:%s", kLineEnding);
+    std::printf("  generated    : %s (short: %s)%s",
+                IdentifierFormatter::FormatFull(generated).c_str(),
+                IdentifierFormatter::FormatShort(generated).c_str(),
+                kLineEnding);
+    std::printf("  deterministic: %s (short: %s)%s",
+                IdentifierFormatter::FormatFull(deterministic).c_str(),
+                IdentifierFormatter::FormatShort(deterministic).c_str(),
+                kLineEnding);
+    std::printf("  from text    : %s (short: %s)%s",
+                IdentifierFormatter::FormatFull(from_text).c_str(),
+                IdentifierFormatter::FormatShort(from_text).c_str(),
+                kLineEnding);
+    std::printf("  nil          : %s (is_nil: %s)%s",
+                IdentifierFormatter::FormatFull(nil).c_str(),
+                nil.IsNil() ? "true" : "false",
+                kLineEnding);
+    std::printf("  prefixed     : %s%s",
+                IdentifierFormatter::FormatPrefixed("NPC", from_text).c_str(),
+                kLineEnding);
+    std::printf("  prefixed(sh) : %s%s",
+                IdentifierFormatter::FormatPrefixedShort("NPC", from_text).c_str(),
+                kLineEnding);
+
+    Identifier parsed{};
+    const bool parsed_ok = Identifier::TryParse(from_text.ToString(), parsed);
+    std::printf("  round-trip   : %s%s",
+                (parsed_ok && parsed == from_text) ? "ok" : "failed",
+                kLineEnding);
+}
+
 int RunApplication()
 {
     PrintApplicationBanner();
     PrintBuildInformation();
     PrintPathInformation();
     PrintThirdPartyStatus();
+    PrintIdentifierInformation();
     std::fflush(stdout);
     return EXIT_SUCCESS;
 }

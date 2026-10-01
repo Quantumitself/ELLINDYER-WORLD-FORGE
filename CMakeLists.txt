@@ -114,6 +114,9 @@ set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/Core/BuildInfo.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/ApplicationPaths.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/ApplicationInfo.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/Identifier.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/IdentifierGenerator.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/IdentifierFormatter.cpp"
 )
 
 add_executable(${ELLINDYER_APP_TARGET}
