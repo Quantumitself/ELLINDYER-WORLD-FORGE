@@ -5,9 +5,14 @@
 #include "Core/ApplicationInfo.hpp"
 #include "Core/ApplicationPaths.hpp"
 #include "Core/BuildInfo.hpp"
+#include "Core/Error.hpp"
+#include "Core/ErrorCode.hpp"
+#include "Core/ErrorLogging.hpp"
 #include "Core/Identifier.hpp"
 #include "Core/IdentifierFormatter.hpp"
 #include "Core/IdentifierGenerator.hpp"
+#include "Core/Result.hpp"
+#include "Core/ResultHelpers.hpp"
 #include "Core/Version.hpp"
 #include "ThirdPartyProbe.hpp"
 
@@ -149,6 +154,91 @@ void PrintIdentifierInformation()
                 kLineEnding);
 }
 
+ellindyer::core::Result<int> ParsePositiveInteger(const std::string& text)
+{
+    using ellindyer::core::Error;
+    using ellindyer::core::ErrorCode;
+    using ellindyer::core::MakeError;
+    using ellindyer::core::MakeResult;
+    using ellindyer::core::Result;
+
+    if (text.empty())
+    {
+        return Result<int>(MakeError(ErrorCode::InvalidArgument, "text is empty"));
+    }
+
+    int value = 0;
+    for (char c : text)
+    {
+        if (c < '0' || c > '9')
+        {
+            return Result<int>(MakeError(ErrorCode::ParseError, "non-digit character encountered"));
+        }
+        value = value * 10 + (c - '0');
+    }
+
+    if (value <= 0)
+    {
+        return Result<int>(MakeError(ErrorCode::OutOfRange, "value must be positive"));
+    }
+
+    return MakeResult(value);
+}
+
+void PrintErrorInformation()
+{
+    using ellindyer::core::Error;
+    using ellindyer::core::ErrorCode;
+    using ellindyer::core::ErrorLogging;
+    using ellindyer::core::MakeError;
+    using ellindyer::core::Result;
+
+    const Error success = Error::Success();
+    const Error failure = MakeError(ErrorCode::FileNotFound, "Elyndra.png");
+    const Error generic = Error::FromCode(ErrorCode::InvalidSchema);
+
+    std::printf("Error examples:%s", kLineEnding);
+    std::printf("  success     : is_success=%s is_failure=%s%s",
+                success.IsSuccess() ? "true" : "false",
+                success.IsFailure() ? "true" : "false",
+                kLineEnding);
+    std::printf("  failure     : %s%s",
+                failure.ToDiagnosticString().c_str(),
+                kLineEnding);
+    std::printf("  generic     : %s%s",
+                generic.ToDiagnosticString().c_str(),
+                kLineEnding);
+
+    const Result<int> ok_result = ParsePositiveInteger("42");
+    const Result<int> empty_result = ParsePositiveInteger("");
+    const Result<int> non_digit_result = ParsePositiveInteger("12x");
+    const Result<int> zero_result = ParsePositiveInteger("0");
+
+    std::printf("Result<int> examples:%s", kLineEnding);
+    std::printf("  \"42\"  : %s (%s)%s",
+                ok_result.HasValue() ? "value" : "error",
+                ok_result.HasValue() ? std::to_string(ok_result.Value()).c_str()
+                                     : ok_result.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+    std::printf("  \"\"    : %s (%s)%s",
+                empty_result.HasValue() ? "value" : "error",
+                empty_result.HasValue() ? std::to_string(empty_result.Value()).c_str()
+                                        : empty_result.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+    std::printf("  \"12x\" : %s (%s)%s",
+                non_digit_result.HasValue() ? "value" : "error",
+                non_digit_result.HasValue() ? std::to_string(non_digit_result.Value()).c_str()
+                                            : non_digit_result.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+    std::printf("  \"0\"   : %s (%s)%s",
+                zero_result.HasValue() ? "value" : "error",
+                zero_result.HasValue() ? std::to_string(zero_result.Value()).c_str()
+                                       : zero_result.GetError().ToDiagnosticString().c_str(),
+                kLineEnding);
+
+    ErrorLogging::LogError("bootstrap", failure);
+}
+
 int RunApplication()
 {
     PrintApplicationBanner();
@@ -156,7 +246,9 @@ int RunApplication()
     PrintPathInformation();
     PrintThirdPartyStatus();
     PrintIdentifierInformation();
+    PrintErrorInformation();
     std::fflush(stdout);
+    std::fflush(stderr);
     return EXIT_SUCCESS;
 }
 
