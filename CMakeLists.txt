@@ -97,11 +97,19 @@ set(ELLINDYER_DOCS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/docs")
 set(ELLINDYER_APP_TARGET "EllindyerWorldForge")
 
 # -----------------------------------------------------------------------------
+# Third-party libraries
+# -----------------------------------------------------------------------------
+
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party"
+                 "${CMAKE_BINARY_DIR}/third_party")
+
+# -----------------------------------------------------------------------------
 # Application executable
 # -----------------------------------------------------------------------------
 
 set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/main.cpp"
+    "${ELLINDYER_SOURCES_DIR}/ThirdPartyProbe.cpp"
 )
 
 add_executable(${ELLINDYER_APP_TARGET}
@@ -118,6 +126,15 @@ target_compile_definitions(${ELLINDYER_APP_TARGET}
         ELLINDYER_WORLD_FORGE_VERSION_MAJOR=${ELLINDYER_WORLD_FORGE_VERSION_MAJOR}
         ELLINDYER_WORLD_FORGE_VERSION_MINOR=${ELLINDYER_WORLD_FORGE_VERSION_MINOR}
         ELLINDYER_WORLD_FORGE_VERSION_PATCH=${ELLINDYER_WORLD_FORGE_VERSION_PATCH}
+)
+
+target_link_libraries(${ELLINDYER_APP_TARGET}
+    PRIVATE
+        ellindyer_json
+        ellindyer_spdlog
+        ellindyer_stb
+        ellindyer_imgui
+        ellindyer_catch2
 )
 
 set_target_properties(${ELLINDYER_APP_TARGET} PROPERTIES

@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "ThirdPartyProbe.hpp"
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -26,13 +28,33 @@ void PrintBanner()
                 kVersionPatch,
                 kLineEnding);
     std::printf("World & Game Design Studio%s", kLineEnding);
-    std::printf("Build system initialized.%s", kLineEnding);
-    std::fflush(stdout);
+}
+
+void PrintThirdPartyStatus()
+{
+    const ellindyer::third_party::LibraryStatus status =
+        ellindyer::third_party::QueryLibraryStatus();
+
+    std::printf("Third-party libraries:%s", kLineEnding);
+    std::printf("  nlohmann/json : %s%s",
+                status.json_available ? "available" : "not present",
+                kLineEnding);
+    std::printf("  spdlog        : %s%s",
+                status.spdlog_available ? "available" : "not present",
+                kLineEnding);
+    std::printf("  stb           : %s%s",
+                status.stb_available ? "available" : "not present",
+                kLineEnding);
+    std::printf("  Dear ImGui    : %s%s",
+                status.imgui_available ? "available" : "not present",
+                kLineEnding);
 }
 
 int RunApplication()
 {
     PrintBanner();
+    PrintThirdPartyStatus();
+    std::fflush(stdout);
     return EXIT_SUCCESS;
 }
 
