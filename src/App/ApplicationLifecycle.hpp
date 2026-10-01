@@ -6,6 +6,8 @@
 #include "App/ApplicationContext.hpp"
 #include "Core/Error.hpp"
 #include "Core/Result.hpp"
+#include "UI/Shell/ShellLayout.hpp"
+#include "UI/Shell/ShellWindow.hpp"
 #include "UI/Splash/SplashScreen.hpp"
 #include "UI/UIHost.hpp"
 
@@ -47,6 +49,8 @@ private:
 
     [[nodiscard]] ellindyer::core::Result<void> InitializeUI();
 
+    void ConfigureShell();
+
     void RunSplashStage();
 
     void RunMainLoop();
@@ -64,6 +68,9 @@ private:
     std::unique_ptr<ellindyer::ui::UIHost> ui_host_;
 
     ellindyer::ui::splash::SplashScreen    splash_;
+    ellindyer::ui::shell::ShellWindow      shell_window_;
+    ellindyer::ui::shell::ShellLayout      shell_layout_;
+
     bool                                   splash_stage_complete_ = false;
 };
 

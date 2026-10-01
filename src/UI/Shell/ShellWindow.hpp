@@ -1,0 +1,57 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+
+#include <imgui.h>
+
+#include "UI/Fonts/FontManager.hpp"
+
+namespace ellindyer::ui::shell
+{
+
+struct ShellWindowConfiguration
+{
+    std::string title;
+    std::string subtitle;
+    bool        show_menu_bar   = false;
+    bool        show_status_bar = false;
+    bool        show_dockspace  = false;
+};
+
+class ShellWindow
+{
+public:
+    ShellWindow();
+    ~ShellWindow();
+
+    ShellWindow(const ShellWindow&) = delete;
+    ShellWindow& operator=(const ShellWindow&) = delete;
+    ShellWindow(ShellWindow&&) noexcept = delete;
+    ShellWindow& operator=(ShellWindow&&) noexcept = delete;
+
+    void Configure(const ShellWindowConfiguration& configuration);
+
+    void Render(const ellindyer::ui::fonts::FontSet& fonts);
+
+    void SetTitle(std::string title);
+
+    void SetSubtitle(std::string subtitle);
+
+    [[nodiscard]] const std::string& GetTitle() const noexcept;
+
+    [[nodiscard]] const std::string& GetSubtitle() const noexcept;
+
+private:
+    void RenderHeader(const ellindyer::ui::fonts::FontSet& fonts);
+
+    void RenderBody(const ellindyer::ui::fonts::FontSet& fonts);
+
+    void RenderStatusLine(const ellindyer::ui::fonts::FontSet& fonts);
+
+    ShellWindowConfiguration configuration_{};
+    float                   last_frame_time_ms_ = 0.0f;
+    float                   last_frames_per_second_ = 0.0f;
+};
+
+} // namespace ellindyer::ui::shell

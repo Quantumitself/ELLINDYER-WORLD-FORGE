@@ -32,45 +32,6 @@ constexpr std::size_t  kLogMaxFiles      = 4;
 constexpr std::uint32_t kDefaultWindowWidth  = 1400U;
 constexpr std::uint32_t kDefaultWindowHeight = 900U;
 
-void RenderFrameContent(const ellindyer::core::ApplicationInfo& info)
-{
-    ImGuiIO& io = ImGui::GetIO();
-
-    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-    ImGui::SetNextWindowSize(io.DisplaySize);
-
-    constexpr ImGuiWindowFlags flags =
-        ImGuiWindowFlags_NoTitleBar
-        | ImGuiWindowFlags_NoResize
-        | ImGuiWindowFlags_NoMove
-        | ImGuiWindowFlags_NoScrollbar
-        | ImGuiWindowFlags_NoScrollWithMouse
-        | ImGuiWindowFlags_NoCollapse
-        | ImGuiWindowFlags_NoSavedSettings
-        | ImGuiWindowFlags_NoBringToFrontOnFocus
-        | ImGuiWindowFlags_NoNavFocus
-        | ImGuiWindowFlags_NoBackground;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f, 24.0f));
-    ImGui::Begin("##WorldForgeFrame", nullptr, flags);
-
-    ImGui::Text("%s %s", info.name.c_str(), info.version.c_str());
-    ImGui::Separator();
-    ImGui::TextUnformatted("Main workspace placeholder.");
-    ImGui::TextUnformatted("Splash stage completed.");
-    ImGui::TextUnformatted("DirectX 11 rendering active.");
-    ImGui::TextUnformatted("Dear ImGui context initialized.");
-    ImGui::Text("Client area: %ux%u",
-                static_cast<unsigned>(io.DisplaySize.x),
-                static_cast<unsigned>(io.DisplaySize.y));
-    ImGui::Text("Frame time: %.3f ms (%.1f FPS)",
-                static_cast<double>(io.DeltaTime) * 1000.0,
-                io.Framerate > 0.0f ? static_cast<double>(io.Framerate) : 0.0);
-
-    ImGui::End();
-    ImGui::PopStyleVar();
-}
-
 } // namespace
 
 ApplicationLifecycle::ApplicationLifecycle()
@@ -116,6 +77,8 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
         state_ = ApplicationState::Uninitialized;
         return ui_result;
     }
+
+    ConfigureShell();
 
     state_ = ApplicationState::Running;
     return Result<void>{};
@@ -280,6 +243,27 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
     return Result<void>{};
 }
 
+void ApplicationLifecycle::ConfigureShell()
+{
+    ellindyer::ui::shell::ShellWindowConfiguration shell_configuration{};
+    shell_configuration.title         = context_.GetApplicationInfo().name;
+    shell_configuration.subtitle      = context_.GetApplicationInfo().tagline;
+    shell_configuration.show_menu_bar = false;
+    shell_configuration.show_status_bar = true;
+    shell_configuration.show_dockspace  = false;
+
+    shell_window_.Configure(shell_configuration);
+
+    ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
+    layout_configuration.left_panel_width_fraction  = 0.20f;
+    layout_configuration.right_panel_width_fraction = 0.22f;
+    layout_configuration.left_panel_min_width       = 220.0f;
+    layout_configuration.right_panel_min_width      = 260.0f;
+    layout_configuration.center_min_width           = 320.0f;
+
+    shell_layout_.Configure(layout_configuration);
+}
+
 void ApplicationLifecycle::RunSplashStage()
 {
     using ellindyer::ui::fonts::FontSet;
@@ -360,7 +344,10 @@ void ApplicationLifecycle::RunMainLoop()
 
 void ApplicationLifecycle::RenderMainFrame()
 {
-    RenderFrameContent(context_.GetApplicationInfo());
+    const ellindyer::ui::fonts::FontSet& fonts = ui_host_->GetFonts();
+
+    shell_window_.Render(fonts);
+    shell_layout_.Render(fonts);
 }
 
 void ApplicationLifecycle::EmitStartupDiagnostics()

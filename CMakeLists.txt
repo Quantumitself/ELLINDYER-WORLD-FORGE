@@ -124,6 +124,8 @@ set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/UI/Textures/TextureLoader.cpp"
     "${ELLINDYER_SOURCES_DIR}/UI/Splash/SplashScreen.cpp"
     "${ELLINDYER_SOURCES_DIR}/UI/Splash/SplashOrchestrator.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Shell/ShellWindow.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Shell/ShellLayout.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/Version.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/BuildInfo.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/ApplicationPaths.cpp"
