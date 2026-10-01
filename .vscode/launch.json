@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/default/bin/EllindyerWorldForge.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/default/bin",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "CMake: Build (default)"
+    },
+    {
+      "name": "Release (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/release/bin/EllindyerWorldForge.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/release/bin",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "CMake: Build (release)"
+    }
+  ]
+}

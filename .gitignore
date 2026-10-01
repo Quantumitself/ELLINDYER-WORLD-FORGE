@@ -28,6 +28,7 @@ Makefile
 !.vscode/tasks.json
 !.vscode/extensions.json
 !.vscode/c_cpp_properties.json
+!.vscode/cmake-kits.json
 
 # Compiled binaries
 *.exe

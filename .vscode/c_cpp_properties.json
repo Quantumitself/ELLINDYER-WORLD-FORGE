@@ -1,0 +1,25 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "Win32",
+      "includePath": [
+        "${workspaceFolder}/src/**"
+      ],
+      "defines": [
+        "UNICODE",
+        "_UNICODE",
+        "NOMINMAX",
+        "WIN32_LEAN_AND_MEAN",
+        "_CRT_SECURE_NO_WARNINGS"
+      ],
+      "windowsSdkVersion": "10.0.19041.0",
+      "compilerPath": "cl.exe",
+      "cStandard": "c17",
+      "cppStandard": "c++20",
+      "intelliSenseMode": "windows-msvc-x64",
+      "configurationProvider": "ms-vscode.cmake-tools",
+      "compileCommands": "${workspaceFolder}/compile_commands.json"
+    }
+  ]
+}

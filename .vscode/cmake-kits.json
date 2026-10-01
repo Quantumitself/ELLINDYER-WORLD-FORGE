@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Visual Studio Community 2026 - amd64",
+    "visualStudio": "Visual Studio Community 2026",
+    "visualStudioArchitecture": "amd64",
+    "preferredGenerator": {
+      "name": "Ninja"
+    }
+  }
+]
