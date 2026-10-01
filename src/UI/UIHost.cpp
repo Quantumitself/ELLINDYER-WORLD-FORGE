@@ -1,5 +1,10 @@
 #include "UI/UIHost.hpp"
 
+#include <string>
+
+#include "Core/Error.hpp"
+#include "Core/LogMacros.hpp"
+#include "Core/Result.hpp"
 #include "UI/ImGui/ImGuiWin32MessageHook.hpp"
 
 namespace ellindyer::ui
@@ -9,6 +14,7 @@ UIHost::UIHost()
     : window_(std::make_unique<ellindyer::ui::platform::PlatformWindow>())
     , graphics_(std::make_unique<ellindyer::ui::graphics::DirectX11Context>())
     , imgui_(std::make_unique<ellindyer::ui::imgui_layer::ImGuiLayer>())
+    , logo_(std::make_unique<ellindyer::ui::branding::LogoTexture>())
 {
 }
 
@@ -73,6 +79,10 @@ ellindyer::core::Result<void> UIHost::Initialize(const UIHostDescription& descri
         return imgui_result;
     }
 
+    ResolveBranding();
+    LoadFonts();
+    LoadLogo();
+
     initialized_ = true;
     return Result<void>{};
 }
@@ -82,6 +92,11 @@ void UIHost::Shutdown()
     if (!initialized_ && !window_)
     {
         return;
+    }
+
+    if (logo_)
+    {
+        logo_->Release();
     }
 
     if (imgui_)
@@ -212,6 +227,26 @@ HWND UIHost::GetNativeHandle() const noexcept
     return window_ ? window_->GetHandle() : nullptr;
 }
 
+ellindyer::ui::graphics::DirectX11Context& UIHost::GetGraphics() noexcept
+{
+    return *graphics_;
+}
+
+const ellindyer::ui::branding::BrandingAssets& UIHost::GetBrandingAssets() const noexcept
+{
+    return branding_;
+}
+
+const ellindyer::ui::fonts::FontSet& UIHost::GetFonts() const noexcept
+{
+    return fonts_;
+}
+
+ellindyer::ui::branding::LogoTexture& UIHost::GetLogo() noexcept
+{
+    return *logo_;
+}
+
 void UIHost::OnWindowResize(std::uint32_t width, std::uint32_t height)
 {
     if (graphics_ && width > 0 && height > 0)
@@ -219,6 +254,34 @@ void UIHost::OnWindowResize(std::uint32_t width, std::uint32_t height)
         const ellindyer::core::Result<void> resize_result = graphics_->Resize(width, height);
         (void)resize_result;
     }
+}
+
+void UIHost::ResolveBranding()
+{
+    branding_ = ellindyer::ui::branding::BrandingAssetsLocator::Resolve();
+
+    const std::string description = ellindyer::ui::branding::BrandingAssetsLocator::Describe(branding_);
+    ELLINDYER_LOG_INFO("Branding assets resolved:\n" + description);
+}
+
+void UIHost::LoadFonts()
+{
+    ellindyer::ui::fonts::FontLoadOptions options{};
+    fonts_ = ellindyer::ui::fonts::FontManager::Load(branding_, options);
+
+    const std::string description = ellindyer::ui::fonts::FontManager::Describe(fonts_);
+    ELLINDYER_LOG_INFO("Fonts loaded: " + description);
+}
+
+void UIHost::LoadLogo()
+{
+    const ellindyer::core::Result<void> logo_result = logo_->Load(*graphics_, branding_);
+    if (logo_result.HasError())
+    {
+        ELLINDYER_LOG_WARNING("Logo not loaded: " + logo_result.GetError().ToDiagnosticString());
+        return;
+    }
+    ELLINDYER_LOG_INFO("Logo loaded");
 }
 
 } // namespace ellindyer::ui

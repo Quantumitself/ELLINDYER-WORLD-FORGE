@@ -8,6 +8,9 @@
 
 #include "Core/Error.hpp"
 #include "Core/Result.hpp"
+#include "UI/Branding/BrandingAssets.hpp"
+#include "UI/Branding/LogoTexture.hpp"
+#include "UI/Fonts/FontManager.hpp"
 #include "UI/Graphics/DirectX11Context.hpp"
 #include "UI/ImGui/ImGuiLayer.hpp"
 #include "UI/Platform/PlatformWindow.hpp"
@@ -63,13 +66,32 @@ public:
 
     [[nodiscard]] HWND GetNativeHandle() const noexcept;
 
+    [[nodiscard]] ellindyer::ui::graphics::DirectX11Context& GetGraphics() noexcept;
+
+    [[nodiscard]] const ellindyer::ui::branding::BrandingAssets& GetBrandingAssets() const noexcept;
+
+    [[nodiscard]] const ellindyer::ui::fonts::FontSet& GetFonts() const noexcept;
+
+    [[nodiscard]] ellindyer::ui::branding::LogoTexture& GetLogo() noexcept;
+
 private:
     void OnWindowResize(std::uint32_t width, std::uint32_t height);
+
+    void ResolveBranding();
+
+    void LoadFonts();
+
+    void LoadLogo();
 
     std::unique_ptr<ellindyer::ui::platform::PlatformWindow>   window_;
     std::unique_ptr<ellindyer::ui::graphics::DirectX11Context> graphics_;
     std::unique_ptr<ellindyer::ui::imgui_layer::ImGuiLayer>    imgui_;
-    bool                                                       initialized_ = false;
+
+    ellindyer::ui::branding::BrandingAssets        branding_{};
+    ellindyer::ui::fonts::FontSet                  fonts_{};
+    std::unique_ptr<ellindyer::ui::branding::LogoTexture> logo_;
+
+    bool initialized_ = false;
 };
 
 } // namespace ellindyer::ui

@@ -6,6 +6,7 @@
 #include "App/ApplicationContext.hpp"
 #include "Core/Error.hpp"
 #include "Core/Result.hpp"
+#include "UI/Splash/SplashScreen.hpp"
 #include "UI/UIHost.hpp"
 
 namespace ellindyer::app
@@ -46,7 +47,11 @@ private:
 
     [[nodiscard]] ellindyer::core::Result<void> InitializeUI();
 
+    void RunSplashStage();
+
     void RunMainLoop();
+
+    void RenderMainFrame();
 
     void EmitStartupDiagnostics();
 
@@ -57,6 +62,9 @@ private:
     bool               logging_initialized_ = false;
 
     std::unique_ptr<ellindyer::ui::UIHost> ui_host_;
+
+    ellindyer::ui::splash::SplashScreen    splash_;
+    bool                                   splash_stage_complete_ = false;
 };
 
 } // namespace ellindyer::app

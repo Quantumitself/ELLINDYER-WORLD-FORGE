@@ -30,11 +30,23 @@ target_include_directories(ellindyer_spdlog
 # -----------------------------------------------------------------------------
 # stb (image loading)
 # -----------------------------------------------------------------------------
-add_library(ellindyer_stb INTERFACE)
-target_include_directories(ellindyer_stb
-    INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-)
+set(ELLINDYER_STB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/stb")
+
+if(EXISTS "${ELLINDYER_STB_DIR}/stb_image.h")
+    add_library(ellindyer_stb STATIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/stb/stb_image_impl.cpp"
+    )
+    target_include_directories(ellindyer_stb
+        PUBLIC
+            "${ELLINDYER_STB_DIR}"
+    )
+else()
+    add_library(ellindyer_stb INTERFACE)
+    target_include_directories(ellindyer_stb
+        INTERFACE
+            "${ELLINDYER_STB_DIR}"
+    )
+endif()
 
 # -----------------------------------------------------------------------------
 # Dear ImGui (compiled as an internal static library)

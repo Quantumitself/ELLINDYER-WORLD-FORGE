@@ -32,12 +32,13 @@ constexpr std::size_t  kLogMaxFiles      = 4;
 constexpr std::uint32_t kDefaultWindowWidth  = 1400U;
 constexpr std::uint32_t kDefaultWindowHeight = 900U;
 
-void RenderFramePlaceholder()
+void RenderFrameContent(const ellindyer::core::ApplicationInfo& info)
 {
     ImGuiIO& io = ImGui::GetIO();
 
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(io.DisplaySize);
+
     constexpr ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_NoResize
@@ -53,9 +54,10 @@ void RenderFramePlaceholder()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f, 24.0f));
     ImGui::Begin("##WorldForgeFrame", nullptr, flags);
 
-    ImGui::TextUnformatted("Ellindyer World Forge");
+    ImGui::Text("%s %s", info.name.c_str(), info.version.c_str());
     ImGui::Separator();
-    ImGui::TextUnformatted("UI framework bootstrapped.");
+    ImGui::TextUnformatted("Main workspace placeholder.");
+    ImGui::TextUnformatted("Splash stage completed.");
     ImGui::TextUnformatted("DirectX 11 rendering active.");
     ImGui::TextUnformatted("Dear ImGui context initialized.");
     ImGui::Text("Client area: %ux%u",
@@ -140,6 +142,7 @@ ellindyer::core::Result<int> ApplicationLifecycle::Run()
     ELLINDYER_LOG_INFO("Application main loop entered");
     ui_host_->ShowWindow();
 
+    RunSplashStage();
     RunMainLoop();
 
     ELLINDYER_LOG_INFO("Application main loop exited");
@@ -245,7 +248,87 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
     }
 
     ELLINDYER_LOG_INFO("UI host initialized");
+
+    ellindyer::ui::splash::SplashScreenConfiguration splash_configuration{};
+    splash_configuration.minimum_duration_seconds = 1.75f;
+    splash_configuration.maximum_duration_seconds = 4.00f;
+    splash_configuration.show_progress            = true;
+    splash_configuration.show_status_text         = true;
+
+    splash_.Configure(splash_configuration);
+    splash_.Reset(context_.GetApplicationInfo().name,
+                  context_.GetApplicationInfo().tagline,
+                  context_.GetApplicationInfo().version);
+
+    splash_.AddStep("Resolving paths");
+    splash_.MarkStepCompleted("Resolving paths");
+    splash_.AddStep("Initializing logging");
+    splash_.MarkStepCompleted("Initializing logging");
+    splash_.AddStep("Loading branding assets");
+    splash_.MarkStepCompleted("Loading branding assets");
+    splash_.AddStep("Loading fonts");
+    splash_.MarkStepCompleted("Loading fonts");
+    splash_.AddStep("Loading application logo");
+    splash_.MarkStepCompleted("Loading application logo");
+    splash_.AddStep("Initializing UI framework");
+    splash_.MarkStepCompleted("Initializing UI framework");
+    splash_.AddStep("Ready");
+
+    splash_.SetProgress(0.95f);
+    splash_.SetStatus("Ready.");
+
     return Result<void>{};
+}
+
+void ApplicationLifecycle::RunSplashStage()
+{
+    using ellindyer::ui::fonts::FontSet;
+    using ellindyer::ui::branding::LogoTexture;
+
+    const FontSet& fonts = ui_host_->GetFonts();
+    const LogoTexture& logo = ui_host_->GetLogo();
+
+    while (!splash_.IsComplete())
+    {
+        if (!ui_host_->PumpMessages())
+        {
+            splash_.Complete();
+            return;
+        }
+
+        if (ui_host_->ShouldClose())
+        {
+            splash_.Complete();
+            return;
+        }
+
+        ui_host_->BeginFrame();
+
+        splash_.Render(fonts.title_medium,
+                       fonts.heading_bold,
+                       fonts.default_regular,
+                       fonts.small_regular,
+                       logo);
+
+        ui_host_->EndFrame();
+
+        const ellindyer::core::Result<void> present_result = ui_host_->Present();
+        if (present_result.HasError())
+        {
+            ELLINDYER_LOG_ERROR(present_result.GetError().ToDiagnosticString());
+            splash_.Complete();
+            ui_host_->RequestClose();
+            return;
+        }
+
+        if (splash_.ShouldAdvance())
+        {
+            splash_.Complete();
+        }
+    }
+
+    splash_stage_complete_ = true;
+    ELLINDYER_LOG_INFO("Splash stage completed");
 }
 
 void ApplicationLifecycle::RunMainLoop()
@@ -263,7 +346,7 @@ void ApplicationLifecycle::RunMainLoop()
         }
 
         ui_host_->BeginFrame();
-        RenderFramePlaceholder();
+        RenderMainFrame();
         ui_host_->EndFrame();
 
         const ellindyer::core::Result<void> present_result = ui_host_->Present();
@@ -273,6 +356,11 @@ void ApplicationLifecycle::RunMainLoop()
             ui_host_->RequestClose();
         }
     }
+}
+
+void ApplicationLifecycle::RenderMainFrame()
+{
+    RenderFrameContent(context_.GetApplicationInfo());
 }
 
 void ApplicationLifecycle::EmitStartupDiagnostics()

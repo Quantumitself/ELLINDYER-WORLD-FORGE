@@ -118,6 +118,12 @@ set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/UI/ImGui/ImGuiLayer.cpp"
     "${ELLINDYER_SOURCES_DIR}/UI/ImGui/ImGuiWin32MessageHook.cpp"
     "${ELLINDYER_SOURCES_DIR}/UI/UIHost.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Branding/BrandingAssets.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Branding/LogoTexture.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Fonts/FontManager.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Textures/TextureLoader.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Splash/SplashScreen.cpp"
+    "${ELLINDYER_SOURCES_DIR}/UI/Splash/SplashOrchestrator.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/Version.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/BuildInfo.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/ApplicationPaths.cpp"
@@ -147,6 +153,7 @@ add_executable(${ELLINDYER_APP_TARGET}
 target_include_directories(${ELLINDYER_APP_TARGET}
     PRIVATE
         "${ELLINDYER_SOURCES_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/spdlog/include"
 )
 
