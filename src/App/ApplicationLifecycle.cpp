@@ -14,6 +14,7 @@
 #include "Core/LoggerExtensions.hpp"
 #include "Core/LogMacros.hpp"
 #include "UI/Menu/ApplicationMenuBuilder.hpp"
+#include "UI/Toolbar/ApplicationToolbarBuilder.hpp"
 
 namespace ellindyer::app
 {
@@ -81,6 +82,7 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
 
     ConfigureShell();
     ConfigureMenuBar();
+    ConfigureToolbar();
 
     state_ = ApplicationState::Running;
     return Result<void>{};
@@ -251,6 +253,7 @@ void ApplicationLifecycle::ConfigureShell()
     shell_configuration.title           = context_.GetApplicationInfo().name;
     shell_configuration.subtitle        = context_.GetApplicationInfo().tagline;
     shell_configuration.show_menu_bar   = true;
+    shell_configuration.show_toolbar    = true;
     shell_configuration.show_status_bar = true;
     shell_configuration.show_dockspace  = false;
 
@@ -302,6 +305,30 @@ void ApplicationLifecycle::ConfigureMenuBar()
     ellindyer::ui::menu::ApplicationMenuBuilder::Build(menu_bar, state, handlers);
 }
 
+void ApplicationLifecycle::ConfigureToolbar()
+{
+    ellindyer::ui::toolbar::Toolbar& toolbar = shell_window_.GetToolbar();
+
+    ellindyer::ui::toolbar::ToolbarStyle style{};
+    style.height          = 34.0f;
+    style.padding_x       = 10.0f;
+    style.padding_y       = 4.0f;
+    style.item_spacing    = 4.0f;
+    style.show_separators = true;
+
+    toolbar.SetStyle(style);
+    toolbar.SetCommandHandler(
+        [this](const std::string& identifier)
+        {
+            HandleToolbarCommand(identifier);
+        });
+
+    const ellindyer::ui::toolbar::ApplicationToolbarState state = BuildToolbarState();
+    const ellindyer::ui::toolbar::ApplicationToolbarHandlers handlers = BuildToolbarHandlers();
+
+    ellindyer::ui::toolbar::ApplicationToolbarBuilder::Build(toolbar, state, handlers);
+}
+
 void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
 {
     ELLINDYER_LOG_INFO("Menu command: " + identifier);
@@ -313,6 +340,7 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
         const bool next = !shell_layout_.IsProjectExplorerVisible();
         shell_layout_.SetProjectExplorerVisible(next);
         menu_bar.SetItemChecked("View", identifier, next);
+        shell_window_.GetToolbar().SetItemChecked("toolbar.toggle_project_explorer", next);
         return;
     }
 
@@ -329,6 +357,7 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
         const bool next = !shell_layout_.IsInspectorVisible();
         shell_layout_.SetInspectorVisible(next);
         menu_bar.SetItemChecked("View", identifier, next);
+        shell_window_.GetToolbar().SetItemChecked("toolbar.toggle_inspector", next);
         return;
     }
 
@@ -349,6 +378,10 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
         menu_bar.SetItemChecked("View", "view.toggle_inspector", true);
         menu_bar.SetItemChecked("View", "view.toggle_status_bar", true);
 
+        ellindyer::ui::toolbar::Toolbar& toolbar = shell_window_.GetToolbar();
+        toolbar.SetItemChecked("toolbar.toggle_project_explorer", true);
+        toolbar.SetItemChecked("toolbar.toggle_inspector", true);
+
         shell_layout_.ResetLayout();
         return;
     }
@@ -362,6 +395,23 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
         }
         return;
     }
+}
+
+void ApplicationLifecycle::HandleToolbarCommand(const std::string& identifier)
+{
+    if (identifier == "toolbar.toggle_project_explorer")
+    {
+        HandleMenuCommand("view.toggle_project_explorer");
+        return;
+    }
+
+    if (identifier == "toolbar.toggle_inspector")
+    {
+        HandleMenuCommand("view.toggle_inspector");
+        return;
+    }
+
+    ELLINDYER_LOG_INFO("Toolbar command: " + identifier);
 }
 
 ellindyer::ui::menu::ApplicationMenuHandlers ApplicationLifecycle::BuildMenuHandlers()
@@ -457,6 +507,74 @@ ellindyer::ui::menu::ApplicationMenuState ApplicationLifecycle::BuildMenuState()
     return state;
 }
 
+ellindyer::ui::toolbar::ApplicationToolbarHandlers ApplicationLifecycle::BuildToolbarHandlers()
+{
+    ellindyer::ui::toolbar::ApplicationToolbarHandlers handlers{};
+
+    handlers.on_new_project = []()
+    {
+        ELLINDYER_LOG_INFO("Toolbar action: file.new_project");
+    };
+
+    handlers.on_open_project = []()
+    {
+        ELLINDYER_LOG_INFO("Toolbar action: file.open_project");
+    };
+
+    handlers.on_save_project = []()
+    {
+        ELLINDYER_LOG_INFO("Toolbar action: file.save_project");
+    };
+
+    handlers.on_undo = []()
+    {
+        ELLINDYER_LOG_INFO("Toolbar action: edit.undo");
+    };
+
+    handlers.on_redo = []()
+    {
+        ELLINDYER_LOG_INFO("Toolbar action: edit.redo");
+    };
+
+    handlers.on_toggle_project_explorer = [this]()
+    {
+        HandleToolbarCommand("toolbar.toggle_project_explorer");
+    };
+
+    handlers.on_toggle_inspector = [this]()
+    {
+        HandleToolbarCommand("toolbar.toggle_inspector");
+    };
+
+    handlers.on_validate_project = []()
+    {
+        ELLINDYER_LOG_INFO("Toolbar action: tools.validate_project");
+    };
+
+    handlers.on_open_search = []()
+    {
+        ELLINDYER_LOG_INFO("Toolbar action: tools.open_search");
+    };
+
+    handlers.on_export_universal = []()
+    {
+        ELLINDYER_LOG_INFO("Toolbar action: export.universal");
+    };
+
+    return handlers;
+}
+
+ellindyer::ui::toolbar::ApplicationToolbarState ApplicationLifecycle::BuildToolbarState() const
+{
+    ellindyer::ui::toolbar::ApplicationToolbarState state{};
+    state.has_project           = false;
+    state.can_undo              = false;
+    state.can_redo              = false;
+    state.show_project_explorer = shell_layout_.IsProjectExplorerVisible();
+    state.show_inspector        = shell_layout_.IsInspectorVisible();
+    return state;
+}
+
 void ApplicationLifecycle::RunSplashStage()
 {
     using ellindyer::ui::fonts::FontSet;
@@ -541,18 +659,13 @@ void ApplicationLifecycle::RenderMainFrame()
 
     const ImGuiIO& io = ImGui::GetIO();
 
-    shell_layout_.GetStatusBar().SetLeftText("Ready");
     shell_layout_.GetStatusBar().SetMiddleText(
         "Frame: " + std::to_string(static_cast<int>(io.DeltaTime * 1000.0f)) + " ms");
     shell_layout_.GetStatusBar().SetRightText(
         "FPS: " + std::to_string(static_cast<int>(io.Framerate)));
 
-    // Shell header first (top of viewport)
     shell_window_.Render(fonts);
-
-    // DockSpace host with docked panels
     shell_layout_.Render(fonts, shell_window_.GetConsumedHeight());
-
 }
 
 void ApplicationLifecycle::EmitStartupDiagnostics()

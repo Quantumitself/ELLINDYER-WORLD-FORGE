@@ -10,6 +10,7 @@
 #include "UI/Shell/ShellLayout.hpp"
 #include "UI/Shell/ShellWindow.hpp"
 #include "UI/Splash/SplashScreen.hpp"
+#include "UI/Toolbar/ApplicationToolbarBuilder.hpp"
 #include "UI/UIHost.hpp"
 
 namespace ellindyer::app
@@ -54,11 +55,19 @@ private:
 
     void ConfigureMenuBar();
 
+    void ConfigureToolbar();
+
     void HandleMenuCommand(const std::string& identifier);
+
+    void HandleToolbarCommand(const std::string& identifier);
 
     ellindyer::ui::menu::ApplicationMenuHandlers BuildMenuHandlers();
 
     ellindyer::ui::menu::ApplicationMenuState BuildMenuState() const;
+
+    ellindyer::ui::toolbar::ApplicationToolbarHandlers BuildToolbarHandlers();
+
+    ellindyer::ui::toolbar::ApplicationToolbarState BuildToolbarState() const;
 
     void RunSplashStage();
 

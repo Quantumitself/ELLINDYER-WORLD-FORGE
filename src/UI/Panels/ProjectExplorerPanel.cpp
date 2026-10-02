@@ -19,7 +19,9 @@ ProjectExplorerPanel::~ProjectExplorerPanel() = default;
 
 void ProjectExplorerPanel::Render(const ellindyer::ui::fonts::FontSet& fonts)
 {
-    if (!ImGui::Begin("Project Explorer"))
+    
+    (void)fonts;
+if (!ImGui::Begin("Project Explorer"))
     {
         ImGui::End();
         return;

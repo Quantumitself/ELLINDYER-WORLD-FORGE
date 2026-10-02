@@ -18,7 +18,9 @@ InspectorPanel::~InspectorPanel() = default;
 
 void InspectorPanel::Render(const ellindyer::ui::fonts::FontSet& fonts)
 {
-    if (!ImGui::Begin("Inspector"))
+    
+    (void)fonts;
+if (!ImGui::Begin("Inspector"))
     {
         ImGui::End();
         return;
