@@ -57,6 +57,8 @@ void ApplicationMenuBuilder::BuildFileMenu(MenuBar& menu_bar,
                             handlers.on_new_project, "Ctrl+N", true));
     items.push_back(Command("Open Project...", "file.open_project",
                             handlers.on_open_project, "Ctrl+O", true));
+    items.push_back(Command("Recover from Backup...", "file.recover_from_backup",
+                            handlers.on_recover_from_backup, "", state.has_project));
     items.push_back(MakeSeparator());
     items.push_back(Command("Save Project", "file.save_project",
                             handlers.on_save_project, "Ctrl+S", state.has_project));

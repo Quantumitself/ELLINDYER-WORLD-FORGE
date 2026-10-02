@@ -10,6 +10,7 @@ ApplicationContext::ApplicationContext()
     , build_info_(ellindyer::core::GetBuildInfo())
     , settings_manager_(std::make_unique<
         ellindyer::core::settings::ApplicationSettingsManager>())
+    , project_manager_(std::make_unique<ellindyer::project::ProjectManager>())
 {
     ResolvePaths();
 
@@ -96,6 +97,16 @@ const ellindyer::core::settings::ApplicationSettingsManager&
 ApplicationContext::GetSettingsManager() const noexcept
 {
     return *settings_manager_;
+}
+
+ellindyer::project::ProjectManager& ApplicationContext::GetProjectManager() noexcept
+{
+    return *project_manager_;
+}
+
+const ellindyer::project::ProjectManager& ApplicationContext::GetProjectManager() const noexcept
+{
+    return *project_manager_;
 }
 
 void ApplicationContext::ResolvePaths()

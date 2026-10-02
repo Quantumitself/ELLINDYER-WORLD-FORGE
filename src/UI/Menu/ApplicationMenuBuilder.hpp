@@ -15,6 +15,7 @@ struct ApplicationMenuHandlers
     std::function<void()> on_save_project;
     std::function<void()> on_save_project_as;
     std::function<void()> on_close_project;
+    std::function<void()> on_recover_from_backup;
     std::function<void()> on_exit_application;
 
     std::function<void()> on_undo;

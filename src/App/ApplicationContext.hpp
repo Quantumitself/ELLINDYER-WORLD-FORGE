@@ -7,6 +7,7 @@
 #include "Core/ApplicationInfo.hpp"
 #include "Core/BuildInfo.hpp"
 #include "Core/Settings/ApplicationSettings.hpp"
+#include "Project/ProjectManager.hpp"
 
 namespace ellindyer::app
 {
@@ -54,6 +55,10 @@ public:
     [[nodiscard]] const ellindyer::core::settings::ApplicationSettingsManager&
         GetSettingsManager() const noexcept;
 
+    [[nodiscard]] ellindyer::project::ProjectManager& GetProjectManager() noexcept;
+
+    [[nodiscard]] const ellindyer::project::ProjectManager& GetProjectManager() const noexcept;
+
 private:
     void ResolvePaths();
 
@@ -73,6 +78,8 @@ private:
 
     std::unique_ptr<ellindyer::core::settings::ApplicationSettingsManager>
                                        settings_manager_;
+    std::unique_ptr<ellindyer::project::ProjectManager>
+                                       project_manager_;
 };
 
 } // namespace ellindyer::app

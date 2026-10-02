@@ -100,6 +100,42 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
     ConfigureToolbar();
     ConfigureStatusBar();
 
+    context_.GetProjectManager().AddEventListener(
+        [this](const ellindyer::project::ProjectEvent& event)
+        {
+            using ellindyer::project::ProjectEventKind;
+            switch (event.kind)
+            {
+            case ProjectEventKind::Created:
+                status_message_ = "Project created";
+                break;
+            case ProjectEventKind::Opened:
+                status_message_ = "Project opened";
+                break;
+            case ProjectEventKind::Closed:
+                status_message_ = "Project closed";
+                break;
+            case ProjectEventKind::Saved:
+                status_message_ = "Project saved";
+                break;
+            case ProjectEventKind::Modified:
+                status_message_ = "Modified";
+                break;
+            case ProjectEventKind::Renamed:
+                status_message_ = "Project renamed";
+                break;
+            case ProjectEventKind::MetadataChanged:
+                status_message_ = "Project metadata changed";
+                break;
+            }
+
+            if (!event.project_name.empty())
+            {
+                ELLINDYER_LOG_INFO("Project event: " + event.project_name +
+                                   " (" + event.detail + ")");
+            }
+        });
+
     state_ = ApplicationState::Running;
     return Result<void>{};
 }
@@ -536,6 +572,109 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
         }
         return;
     }
+
+    if (identifier == "file.new_project")
+    {
+        ellindyer::project::ProjectCreateOptions options{};
+        options.root = context_.GetScratchDirectory() / "SampleProject";
+        std::error_code remove_ec;
+        std::filesystem::remove_all(options.root, remove_ec);
+        options.overwrite_existing = true;
+        options.metadata.name = "SampleProject";
+        options.metadata.world_name = "Elyndra";
+        options.metadata.author = context_.GetApplicationInfo().organization;
+        options.metadata.description = "Sample project created from the File menu.";
+
+        const ellindyer::core::Result<void> result =
+            context_.GetProjectManager().CreateProject(options);
+        if (result.HasError())
+        {
+            ELLINDYER_LOG_ERROR("Create project failed: " +
+                                result.GetError().ToDiagnosticString());
+        }
+        return;
+    }
+
+    if (identifier == "file.open_project")
+    {
+        const std::vector<std::filesystem::path>& recent =
+            context_.GetProjectManager().GetRecentProjects();
+        if (recent.empty())
+        {
+            ELLINDYER_LOG_INFO("No recent projects to open.");
+            return;
+        }
+
+        ellindyer::project::ProjectOpenOptions options{};
+        options.root = recent.front();
+        options.require_manifest = true;
+
+        const ellindyer::core::Result<void> result =
+            context_.GetProjectManager().OpenProject(options);
+        if (result.HasError())
+        {
+            ELLINDYER_LOG_ERROR("Open project failed: " +
+                                result.GetError().ToDiagnosticString());
+        }
+        return;
+    }
+
+    if (identifier == "file.save_project")
+    {
+        const ellindyer::core::Result<void> result =
+            context_.GetProjectManager().SaveProject();
+        if (result.HasError())
+        {
+            ELLINDYER_LOG_ERROR("Save project failed: " +
+                                result.GetError().ToDiagnosticString());
+        }
+        return;
+    }
+
+    if (identifier == "file.save_project_as")
+    {
+        const std::string base_name =
+            context_.GetProjectManager().HasProject()
+                ? context_.GetProjectManager().GetProjectName()
+                : std::string{"SampleProject"};
+
+        std::filesystem::path target =
+            context_.GetScratchDirectory() / (base_name + "_copy");
+
+        const ellindyer::core::Result<void> result =
+            context_.GetProjectManager().SaveProjectAs(target);
+        if (result.HasError())
+        {
+            ELLINDYER_LOG_ERROR("Save project as failed: " +
+                                result.GetError().ToDiagnosticString());
+        }
+        return;
+    }
+
+    if (identifier == "file.close_project")
+    {
+        const ellindyer::core::Result<void> result =
+            context_.GetProjectManager().CloseProject();
+        if (result.HasError())
+        {
+            ELLINDYER_LOG_ERROR("Close project failed: " +
+                                result.GetError().ToDiagnosticString());
+        }
+        return;
+    }
+
+    if (identifier == "file.recover_from_backup")
+    {
+        const ellindyer::core::Result<void> result =
+            context_.GetProjectManager().RecoverProjectFromBackup();
+        if (result.HasError())
+        {
+            ELLINDYER_LOG_ERROR("Recover project failed: " +
+                                result.GetError().ToDiagnosticString());
+        }
+        return;
+    }
+
 }
 
 void ApplicationLifecycle::HandleToolbarCommand(const std::string& identifier)
@@ -549,6 +688,42 @@ void ApplicationLifecycle::HandleToolbarCommand(const std::string& identifier)
     if (identifier == "toolbar.toggle_inspector")
     {
         HandleMenuCommand("view.toggle_inspector");
+        return;
+    }
+
+    if (identifier == "toolbar.new_project")
+    {
+        HandleMenuCommand("file.new_project");
+        return;
+    }
+
+    if (identifier == "toolbar.open_project")
+    {
+        HandleMenuCommand("file.open_project");
+        return;
+    }
+
+    if (identifier == "toolbar.save_project")
+    {
+        HandleMenuCommand("file.save_project");
+        return;
+    }
+
+    if (identifier == "toolbar.validate_project")
+    {
+        HandleMenuCommand("tools.validate_project");
+        return;
+    }
+
+    if (identifier == "toolbar.open_search")
+    {
+        HandleMenuCommand("tools.open_search");
+        return;
+    }
+
+    if (identifier == "toolbar.export_universal")
+    {
+        HandleMenuCommand("export.universal");
         return;
     }
 
@@ -610,6 +785,36 @@ ellindyer::ui::menu::ApplicationMenuHandlers ApplicationLifecycle::BuildMenuHand
         HandleMenuCommand("view.reset_layout");
     };
 
+    handlers.on_new_project = [this]()
+    {
+        HandleMenuCommand("file.new_project");
+    };
+
+    handlers.on_open_project = [this]()
+    {
+        HandleMenuCommand("file.open_project");
+    };
+
+    handlers.on_save_project = [this]()
+    {
+        HandleMenuCommand("file.save_project");
+    };
+
+    handlers.on_save_project_as = [this]()
+    {
+        HandleMenuCommand("file.save_project_as");
+    };
+
+    handlers.on_close_project = [this]()
+    {
+        HandleMenuCommand("file.close_project");
+    };
+
+    handlers.on_recover_from_backup = [this]()
+    {
+        HandleMenuCommand("file.recover_from_backup");
+    };
+
     const auto log_only = [](const char* identifier)
     {
         return [identifier]()
@@ -617,12 +822,6 @@ ellindyer::ui::menu::ApplicationMenuHandlers ApplicationLifecycle::BuildMenuHand
             ELLINDYER_LOG_INFO(std::string("Menu action: ") + identifier);
         };
     };
-
-    handlers.on_new_project       = log_only("file.new_project");
-    handlers.on_open_project      = log_only("file.open_project");
-    handlers.on_save_project      = log_only("file.save_project");
-    handlers.on_save_project_as   = log_only("file.save_project_as");
-    handlers.on_close_project     = log_only("file.close_project");
 
     handlers.on_undo              = log_only("edit.undo");
     handlers.on_redo              = log_only("edit.redo");
@@ -655,13 +854,17 @@ ellindyer::ui::menu::ApplicationMenuHandlers ApplicationLifecycle::BuildMenuHand
 ellindyer::ui::menu::ApplicationMenuState ApplicationLifecycle::BuildMenuState() const
 {
     ellindyer::ui::menu::ApplicationMenuState state{};
-    state.has_project           = false;
+
+    const ellindyer::project::ProjectManager& manager = context_.GetProjectManager();
+
+    state.has_project           = manager.HasProject();
     state.has_selection         = false;
     state.has_clipboard         = false;
     state.show_project_explorer = shell_layout_.IsProjectExplorerVisible();
     state.show_workspace        = shell_layout_.IsWorkspaceVisible();
     state.show_inspector        = shell_layout_.IsInspectorVisible();
     state.show_status_bar       = shell_window_.IsStatusBarVisible();
+
     return state;
 }
 
@@ -669,19 +872,19 @@ ellindyer::ui::toolbar::ApplicationToolbarHandlers ApplicationLifecycle::BuildTo
 {
     ellindyer::ui::toolbar::ApplicationToolbarHandlers handlers{};
 
-    handlers.on_new_project = []()
+    handlers.on_new_project = [this]()
     {
-        ELLINDYER_LOG_INFO("Toolbar action: file.new_project");
+        HandleToolbarCommand("toolbar.new_project");
     };
 
-    handlers.on_open_project = []()
+    handlers.on_open_project = [this]()
     {
-        ELLINDYER_LOG_INFO("Toolbar action: file.open_project");
+        HandleToolbarCommand("toolbar.open_project");
     };
 
-    handlers.on_save_project = []()
+    handlers.on_save_project = [this]()
     {
-        ELLINDYER_LOG_INFO("Toolbar action: file.save_project");
+        HandleToolbarCommand("toolbar.save_project");
     };
 
     handlers.on_undo = []()
@@ -725,26 +928,43 @@ ellindyer::ui::toolbar::ApplicationToolbarHandlers ApplicationLifecycle::BuildTo
 ellindyer::ui::toolbar::ApplicationToolbarState ApplicationLifecycle::BuildToolbarState() const
 {
     ellindyer::ui::toolbar::ApplicationToolbarState state{};
-    state.has_project           = false;
+
+    const ellindyer::project::ProjectManager& manager = context_.GetProjectManager();
+
+    state.has_project           = manager.HasProject();
     state.can_undo              = false;
     state.can_redo              = false;
     state.show_project_explorer = shell_layout_.IsProjectExplorerVisible();
     state.show_inspector        = shell_layout_.IsInspectorVisible();
+
     return state;
 }
 
 ellindyer::ui::statusbar::ApplicationStatusBarState ApplicationLifecycle::BuildStatusBarState() const
 {
     ellindyer::ui::statusbar::ApplicationStatusBarState state{};
-    state.message               = status_message_;
-    state.has_project           = false;
-    state.project_name          = "";
+
+    const ellindyer::project::ProjectManager& manager = context_.GetProjectManager();
+
+    state.has_project           = manager.HasProject();
+    state.project_name          = manager.GetProjectName();
     state.entity_count          = 0;
     state.diagnostic_errors     = 0;
     state.diagnostic_warnings   = 0;
     state.selection_summary     = "";
-    state.frame_time_ms         = 0.0f;
-    state.frames_per_second     = 0.0f;
+
+    if (state.has_project)
+    {
+        state.message = manager.IsModified() ? "Modified" : "Ready";
+    }
+    else
+    {
+        state.message = status_message_;
+    }
+
+    state.frame_time_ms     = 0.0f;
+    state.frames_per_second = 0.0f;
+
     return state;
 }
 
@@ -843,6 +1063,41 @@ void ApplicationLifecycle::RenderMainFrame()
     const ellindyer::ui::fonts::FontSet& fonts = ui_host_->GetFonts();
 
     UpdateStatusBar();
+
+    ellindyer::ui::menu::MenuBar& menu_bar = shell_window_.GetMenuBar();
+
+    const ellindyer::project::ProjectManager& manager = context_.GetProjectManager();
+    const bool has_project = manager.HasProject();
+
+    menu_bar.SetItemEnabled("File", "file.save_project", has_project);
+    menu_bar.SetItemEnabled("File", "file.save_project_as", has_project);
+    menu_bar.SetItemEnabled("File", "file.close_project", has_project);
+
+    const bool has_backup =
+        context_.GetProjectManager().HasRecoverableBackup();
+    menu_bar.SetItemEnabled("File", "file.recover_from_backup",
+                            has_project && has_backup);
+
+    menu_bar.SetItemEnabled("Edit", "edit.undo", has_project);
+    menu_bar.SetItemEnabled("Edit", "edit.redo", has_project);
+
+    menu_bar.SetItemEnabled("Project", "project.new_schema", has_project);
+    menu_bar.SetItemEnabled("Project", "project.new_entity", has_project);
+    menu_bar.SetItemEnabled("Project", "project.new_relationship", has_project);
+    menu_bar.SetItemEnabled("Project", "project.new_map", has_project);
+    menu_bar.SetItemEnabled("Project", "project.import_asset", has_project);
+
+    menu_bar.SetItemEnabled("Tools", "tools.validate_project", has_project);
+
+    menu_bar.SetItemEnabled("Export", "export.universal", has_project);
+    menu_bar.SetItemEnabled("Export", "export.unreal", has_project);
+    menu_bar.SetItemEnabled("Export", "export.unity", has_project);
+    menu_bar.SetItemEnabled("Export", "export.godot", has_project);
+
+    ellindyer::ui::toolbar::Toolbar& toolbar = shell_window_.GetToolbar();
+    toolbar.SetItemEnabled("toolbar.save_project", has_project);
+    toolbar.SetItemEnabled("toolbar.validate_project", has_project);
+    toolbar.SetItemEnabled("toolbar.export_universal", has_project);
 
     shell_window_.RenderTop(fonts);
     shell_layout_.Render(fonts,
