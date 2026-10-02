@@ -8,12 +8,26 @@ namespace ellindyer::ui::shell
 namespace
 {
 
-constexpr const char* kShellWindowName = "##WorldForgeShell";
+constexpr const char* kShellTopWindowName    = "##WorldForgeShellTop";
+constexpr const char* kShellBottomWindowName = "##WorldForgeShellBottom";
 constexpr float kHeaderHeight = 72.0f;
+constexpr float kStatusSpacing = 2.0f;
 
-constexpr ImGuiWindowFlags kShellWindowFlags =
+constexpr ImGuiWindowFlags kTopWindowFlags =
     ImGuiWindowFlags_MenuBar
     | ImGuiWindowFlags_NoTitleBar
+    | ImGuiWindowFlags_NoResize
+    | ImGuiWindowFlags_NoMove
+    | ImGuiWindowFlags_NoScrollbar
+    | ImGuiWindowFlags_NoScrollWithMouse
+    | ImGuiWindowFlags_NoCollapse
+    | ImGuiWindowFlags_NoSavedSettings
+    | ImGuiWindowFlags_NoBringToFrontOnFocus
+    | ImGuiWindowFlags_NoNavFocus
+    | ImGuiWindowFlags_NoBackground;
+
+constexpr ImGuiWindowFlags kBottomWindowFlags =
+    ImGuiWindowFlags_NoTitleBar
     | ImGuiWindowFlags_NoResize
     | ImGuiWindowFlags_NoMove
     | ImGuiWindowFlags_NoScrollbar
@@ -47,20 +61,19 @@ ShellWindow::~ShellWindow() = default;
 void ShellWindow::Configure(const ShellWindowConfiguration& configuration)
 {
     configuration_ = configuration;
-    menu_bar_visible_ = configuration_.show_menu_bar;
-    toolbar_visible_  = configuration_.show_toolbar;
+    menu_bar_visible_   = configuration_.show_menu_bar;
+    toolbar_visible_    = configuration_.show_toolbar;
+    status_bar_visible_ = configuration_.show_status_bar;
 }
 
-void ShellWindow::Render(const ellindyer::ui::fonts::FontSet& fonts)
+void ShellWindow::RenderTop(const ellindyer::ui::fonts::FontSet& fonts)
 {
     const ImGuiIO& io = ImGui::GetIO();
 
     const float menu_bar_height = menu_bar_visible_ ? ImGui::GetFrameHeight() : 0.0f;
-    const float toolbar_height  = toolbar_visible_
-        ? (toolbar_.GetHeight() + 4.0f)
-        : 0.0f;
+    const float toolbar_height  = toolbar_visible_ ? (toolbar_.GetHeight() + 4.0f) : 0.0f;
     const float total_height    = menu_bar_height + toolbar_height + kHeaderHeight;
-    consumed_height_ = total_height;
+    top_consumed_height_ = total_height;
 
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, total_height));
@@ -69,7 +82,7 @@ void ShellWindow::Render(const ellindyer::ui::fonts::FontSet& fonts)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 
-    ImGui::Begin(kShellWindowName, nullptr, kShellWindowFlags);
+    ImGui::Begin(kShellTopWindowName, nullptr, kTopWindowFlags);
 
     if (menu_bar_visible_)
     {
@@ -122,8 +135,38 @@ void ShellWindow::Render(const ellindyer::ui::fonts::FontSet& fonts)
     ImGui::PopStyleVar(3);
 }
 
+void ShellWindow::RenderBottom(const ellindyer::ui::fonts::FontSet& fonts)
+{
+    if (!status_bar_visible_)
+    {
+        bottom_consumed_height_ = 0.0f;
+        return;
+    }
+
+    const ImGuiIO& io = ImGui::GetIO();
+    const float status_height = status_bar_.GetHeight() + kStatusSpacing;
+    bottom_consumed_height_ = status_height;
+
+    ImGui::SetNextWindowPos(ImVec2(0.0f, io.DisplaySize.y - status_height));
+    ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, status_height));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+
+    ImGui::Begin(kShellBottomWindowName, nullptr, kBottomWindowFlags);
+
+    RenderHorizontalLine(1.0f);
+
+    status_bar_.Render(fonts);
+
+    ImGui::End();
+    ImGui::PopStyleVar(3);
+}
+
 void ShellWindow::SetTitle(std::string title) { configuration_.title = std::move(title); }
 void ShellWindow::SetSubtitle(std::string subtitle) { configuration_.subtitle = std::move(subtitle); }
+
 const std::string& ShellWindow::GetTitle() const noexcept { return configuration_.title; }
 const std::string& ShellWindow::GetSubtitle() const noexcept { return configuration_.subtitle; }
 
@@ -133,12 +176,19 @@ const ellindyer::ui::menu::MenuBar& ShellWindow::GetMenuBar() const noexcept { r
 ellindyer::ui::toolbar::Toolbar& ShellWindow::GetToolbar() noexcept { return toolbar_; }
 const ellindyer::ui::toolbar::Toolbar& ShellWindow::GetToolbar() const noexcept { return toolbar_; }
 
+ellindyer::ui::statusbar::StatusBar& ShellWindow::GetStatusBar() noexcept { return status_bar_; }
+const ellindyer::ui::statusbar::StatusBar& ShellWindow::GetStatusBar() const noexcept { return status_bar_; }
+
 void ShellWindow::SetMenuBarVisible(bool visible) noexcept { menu_bar_visible_ = visible; }
 bool ShellWindow::IsMenuBarVisible() const noexcept { return menu_bar_visible_; }
 
 void ShellWindow::SetToolbarVisible(bool visible) noexcept { toolbar_visible_ = visible; }
 bool ShellWindow::IsToolbarVisible() const noexcept { return toolbar_visible_; }
 
-float ShellWindow::GetConsumedHeight() const noexcept { return consumed_height_; }
+void ShellWindow::SetStatusBarVisible(bool visible) noexcept { status_bar_visible_ = visible; }
+bool ShellWindow::IsStatusBarVisible() const noexcept { return status_bar_visible_; }
+
+float ShellWindow::GetTopConsumedHeight() const noexcept { return top_consumed_height_; }
+float ShellWindow::GetBottomConsumedHeight() const noexcept { return bottom_consumed_height_; }
 
 } // namespace ellindyer::ui::shell

@@ -83,6 +83,7 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
     ConfigureShell();
     ConfigureMenuBar();
     ConfigureToolbar();
+    ConfigureStatusBar();
 
     state_ = ApplicationState::Running;
     return Result<void>{};
@@ -258,7 +259,6 @@ void ApplicationLifecycle::ConfigureShell()
     shell_configuration.show_dockspace  = false;
 
     shell_window_.Configure(shell_configuration);
-
     shell_layout_.Configure();
 
     shell_layout_.GetProjectExplorer().SetProjectName("Ellindyer World Forge");
@@ -283,10 +283,6 @@ void ApplicationLifecycle::ConfigureShell()
     shell_layout_.GetInspector().SetSelectionTitle("");
     shell_layout_.GetInspector().SetSelectionSubtitle("");
     shell_layout_.GetInspector().Clear();
-
-    shell_layout_.GetStatusBar().SetLeftText("Ready");
-    shell_layout_.GetStatusBar().SetMiddleText("");
-    shell_layout_.GetStatusBar().SetRightText("");
 }
 
 void ApplicationLifecycle::ConfigureMenuBar()
@@ -329,6 +325,20 @@ void ApplicationLifecycle::ConfigureToolbar()
     ellindyer::ui::toolbar::ApplicationToolbarBuilder::Build(toolbar, state, handlers);
 }
 
+void ApplicationLifecycle::ConfigureStatusBar()
+{
+    ellindyer::ui::statusbar::StatusBar& status_bar = shell_window_.GetStatusBar();
+
+    status_bar.SetSegmentClickedHandler(
+        [this](const std::string& identifier)
+        {
+            HandleStatusBarCommand(identifier);
+        });
+
+    const ellindyer::ui::statusbar::ApplicationStatusBarState state = BuildStatusBarState();
+    ellindyer::ui::statusbar::ApplicationStatusBarBuilder::Build(status_bar, state);
+}
+
 void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
 {
     ELLINDYER_LOG_INFO("Menu command: " + identifier);
@@ -363,26 +373,26 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
 
     if (identifier == "view.toggle_status_bar")
     {
-        const bool next = !shell_layout_.IsStatusBarVisible();
-        shell_layout_.SetStatusBarVisible(next);
+        const bool next = !shell_window_.IsStatusBarVisible();
+        shell_window_.SetStatusBarVisible(next);
         menu_bar.SetItemChecked("View", identifier, next);
         return;
     }
 
     if (identifier == "view.reset_layout")
     {
-        shell_layout_.ResetVisibility();
+        shell_layout_.ResetLayout();
 
         menu_bar.SetItemChecked("View", "view.toggle_project_explorer", true);
         menu_bar.SetItemChecked("View", "view.toggle_workspace", true);
         menu_bar.SetItemChecked("View", "view.toggle_inspector", true);
         menu_bar.SetItemChecked("View", "view.toggle_status_bar", true);
 
+        shell_window_.SetStatusBarVisible(true);
+
         ellindyer::ui::toolbar::Toolbar& toolbar = shell_window_.GetToolbar();
         toolbar.SetItemChecked("toolbar.toggle_project_explorer", true);
         toolbar.SetItemChecked("toolbar.toggle_inspector", true);
-
-        shell_layout_.ResetLayout();
         return;
     }
 
@@ -412,6 +422,23 @@ void ApplicationLifecycle::HandleToolbarCommand(const std::string& identifier)
     }
 
     ELLINDYER_LOG_INFO("Toolbar command: " + identifier);
+}
+
+void ApplicationLifecycle::HandleStatusBarCommand(const std::string& identifier)
+{
+    if (identifier == "status.diagnostics")
+    {
+        HandleMenuCommand("tools.open_diagnostics");
+        return;
+    }
+
+    if (identifier == "status.selection")
+    {
+        HandleMenuCommand("view.toggle_inspector");
+        return;
+    }
+
+    ELLINDYER_LOG_INFO("Status bar command: " + identifier);
 }
 
 ellindyer::ui::menu::ApplicationMenuHandlers ApplicationLifecycle::BuildMenuHandlers()
@@ -503,7 +530,7 @@ ellindyer::ui::menu::ApplicationMenuState ApplicationLifecycle::BuildMenuState()
     state.show_project_explorer = shell_layout_.IsProjectExplorerVisible();
     state.show_workspace        = shell_layout_.IsWorkspaceVisible();
     state.show_inspector        = shell_layout_.IsInspectorVisible();
-    state.show_status_bar       = shell_layout_.IsStatusBarVisible();
+    state.show_status_bar       = shell_window_.IsStatusBarVisible();
     return state;
 }
 
@@ -573,6 +600,33 @@ ellindyer::ui::toolbar::ApplicationToolbarState ApplicationLifecycle::BuildToolb
     state.show_project_explorer = shell_layout_.IsProjectExplorerVisible();
     state.show_inspector        = shell_layout_.IsInspectorVisible();
     return state;
+}
+
+ellindyer::ui::statusbar::ApplicationStatusBarState ApplicationLifecycle::BuildStatusBarState() const
+{
+    ellindyer::ui::statusbar::ApplicationStatusBarState state{};
+    state.message               = status_message_;
+    state.has_project           = false;
+    state.project_name          = "";
+    state.entity_count          = 0;
+    state.diagnostic_errors     = 0;
+    state.diagnostic_warnings   = 0;
+    state.selection_summary     = "";
+    state.frame_time_ms         = 0.0f;
+    state.frames_per_second     = 0.0f;
+    return state;
+}
+
+void ApplicationLifecycle::UpdateStatusBar()
+{
+    const ImGuiIO& io = ImGui::GetIO();
+
+    ellindyer::ui::statusbar::ApplicationStatusBarState state = BuildStatusBarState();
+    state.frame_time_ms     = io.DeltaTime * 1000.0f;
+    state.frames_per_second = io.Framerate;
+
+    ellindyer::ui::statusbar::ApplicationStatusBarBuilder::Update(
+        shell_window_.GetStatusBar(), state);
 }
 
 void ApplicationLifecycle::RunSplashStage()
@@ -657,15 +711,13 @@ void ApplicationLifecycle::RenderMainFrame()
 {
     const ellindyer::ui::fonts::FontSet& fonts = ui_host_->GetFonts();
 
-    const ImGuiIO& io = ImGui::GetIO();
+    UpdateStatusBar();
 
-    shell_layout_.GetStatusBar().SetMiddleText(
-        "Frame: " + std::to_string(static_cast<int>(io.DeltaTime * 1000.0f)) + " ms");
-    shell_layout_.GetStatusBar().SetRightText(
-        "FPS: " + std::to_string(static_cast<int>(io.Framerate)));
-
-    shell_window_.Render(fonts);
-    shell_layout_.Render(fonts, shell_window_.GetConsumedHeight());
+    shell_window_.RenderTop(fonts);
+    shell_layout_.Render(fonts,
+                         shell_window_.GetTopConsumedHeight(),
+                         shell_window_.GetBottomConsumedHeight());
+    shell_window_.RenderBottom(fonts);
 }
 
 void ApplicationLifecycle::EmitStartupDiagnostics()

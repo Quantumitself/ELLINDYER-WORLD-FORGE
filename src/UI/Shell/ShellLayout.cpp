@@ -9,28 +9,36 @@ namespace ellindyer::ui::shell
 namespace
 {
 
-constexpr const char* kDockSpaceName              = "WorldForgeDockSpace";
-constexpr const char* kProjectExplorerWindowName  = "Project Explorer";
-constexpr const char* kWorkspaceWindowName        = "Workspace";
-constexpr const char* kInspectorWindowName        = "Inspector";
-constexpr const char* kStatusWindowName           = "Status";
+constexpr const char* kDockSpaceName             = "WorldForgeDockSpace";
+constexpr const char* kProjectExplorerWindowName = "Project Explorer";
+constexpr const char* kWorkspaceWindowName       = "Workspace";
+constexpr const char* kInspectorWindowName       = "Inspector";
 
 } // namespace
 
 ShellLayout::ShellLayout() = default;
-
 ShellLayout::~ShellLayout() = default;
 
 void ShellLayout::Configure()
 {
 }
 
-void ShellLayout::Render(const ellindyer::ui::fonts::FontSet& fonts, float top_offset)
+void ShellLayout::Render(const ellindyer::ui::fonts::FontSet& fonts,
+                         float top_offset,
+                         float bottom_reserved)
 {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-    const ImVec2 host_pos(viewport->Pos.x, viewport->Pos.y + top_offset);
-    const ImVec2 host_size(viewport->Size.x, viewport->Size.y - top_offset);
+    const float host_y = top_offset;
+    const float host_height = viewport->Size.y - top_offset - bottom_reserved;
+
+    if (host_height <= 0.0f)
+    {
+        return;
+    }
+
+    const ImVec2 host_pos(viewport->Pos.x, viewport->Pos.y + host_y);
+    const ImVec2 host_size(viewport->Size.x, host_height);
 
     ImGui::SetNextWindowPos(host_pos);
     ImGui::SetNextWindowSize(host_size);
@@ -72,10 +80,6 @@ void ShellLayout::Render(const ellindyer::ui::fonts::FontSet& fonts, float top_o
     {
         inspector_.Render(fonts);
     }
-    if (status_bar_visible_)
-    {
-        status_bar_.Render(fonts);
-    }
 }
 
 void ShellLayout::EnsureDefaultLayout(ImGuiID dockspace_id, ImVec2 size)
@@ -95,13 +99,10 @@ void ShellLayout::EnsureDefaultLayout(ImGuiID dockspace_id, ImVec2 size)
         ImGui::DockBuilderSplitNode(center_id, ImGuiDir_Left, 0.20f, nullptr, &center_id);
     const ImGuiID right_id =
         ImGui::DockBuilderSplitNode(center_id, ImGuiDir_Right, 0.22f, nullptr, &center_id);
-    const ImGuiID bottom_id =
-        ImGui::DockBuilderSplitNode(center_id, ImGuiDir_Down, 0.12f, nullptr, &center_id);
 
     ImGui::DockBuilderDockWindow(kProjectExplorerWindowName, left_id);
     ImGui::DockBuilderDockWindow(kWorkspaceWindowName,       center_id);
     ImGui::DockBuilderDockWindow(kInspectorWindowName,       right_id);
-    ImGui::DockBuilderDockWindow(kStatusWindowName,          bottom_id);
 
     ImGui::DockBuilderFinish(dockspace_id);
 }
@@ -109,24 +110,20 @@ void ShellLayout::EnsureDefaultLayout(ImGuiID dockspace_id, ImVec2 size)
 ellindyer::ui::panels::ProjectExplorerPanel& ShellLayout::GetProjectExplorer() noexcept { return project_explorer_; }
 ellindyer::ui::panels::WorkspacePanel& ShellLayout::GetWorkspace() noexcept { return workspace_; }
 ellindyer::ui::panels::InspectorPanel& ShellLayout::GetInspector() noexcept { return inspector_; }
-ellindyer::ui::panels::StatusBarPanel& ShellLayout::GetStatusBar() noexcept { return status_bar_; }
 
 void ShellLayout::SetProjectExplorerVisible(bool visible) noexcept { project_explorer_visible_ = visible; }
 void ShellLayout::SetWorkspaceVisible(bool visible) noexcept       { workspace_visible_ = visible; }
 void ShellLayout::SetInspectorVisible(bool visible) noexcept       { inspector_visible_ = visible; }
-void ShellLayout::SetStatusBarVisible(bool visible) noexcept       { status_bar_visible_ = visible; }
 
 bool ShellLayout::IsProjectExplorerVisible() const noexcept { return project_explorer_visible_; }
 bool ShellLayout::IsWorkspaceVisible() const noexcept       { return workspace_visible_; }
 bool ShellLayout::IsInspectorVisible() const noexcept       { return inspector_visible_; }
-bool ShellLayout::IsStatusBarVisible() const noexcept       { return status_bar_visible_; }
 
 void ShellLayout::ResetVisibility() noexcept
 {
     project_explorer_visible_ = true;
     workspace_visible_        = true;
     inspector_visible_        = true;
-    status_bar_visible_       = true;
 }
 
 void ShellLayout::ResetLayout() noexcept
