@@ -7,84 +7,85 @@
 namespace ellindyer::ui::panels
 {
 
-namespace
-{
-ImVec4 ColorPrimary() { return ImVec4(1.00f, 1.00f, 1.00f, 1.00f); }
-ImVec4 ColorMuted()   { return ImVec4(0.45f, 0.45f, 0.45f, 1.00f); }
-} // namespace
-
 InspectorPanel::InspectorPanel() = default;
+
 InspectorPanel::~InspectorPanel() = default;
 
-void InspectorPanel::Render(const ellindyer::ui::fonts::FontSet& fonts)
+void InspectorPanel::Render(
+    const ellindyer::ui::fonts::FontSet& fonts,
+    const ellindyer::ui::layout::PanelLayoutMetrics& metrics)
 {
-    
-    (void)fonts;
-if (!ImGui::Begin("Inspector"))
-    {
-        ImGui::End();
-        return;
-    }
+    using ellindyer::ui::layout::Panel;
+    using ellindyer::ui::layout::PanelStyle;
+
+    Panel panel("Inspector", "Inspector");
+
+    PanelStyle style{};
+    panel.SetStyle(style);
+    panel.SetMinWidth(metrics.right_width);
+
+    panel.BeginPanel(metrics.right_width, metrics.panel_height);
+
+    panel.RenderHeader(fonts);
 
     if (selection_title_.empty())
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, ColorMuted());
-        ImGui::TextUnformatted("Nothing selected.");
-        ImGui::TextUnformatted("Select an object to inspect its properties.");
-        ImGui::PopStyleColor();
+        panel.RenderTextMuted(fonts, "Nothing selected.");
+        panel.RenderTextMuted(fonts, "Select an object to inspect its properties.");
     }
     else
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, ColorPrimary());
-        ImGui::TextUnformatted(selection_title_.c_str());
-        ImGui::PopStyleColor();
+        panel.RenderText(fonts, selection_title_);
 
         if (!selection_subtitle_.empty())
         {
-            ImGui::PushStyleColor(ImGuiCol_Text, ColorMuted());
-            ImGui::TextUnformatted(selection_subtitle_.c_str());
-            ImGui::PopStyleColor();
+            panel.RenderTextMuted(fonts, selection_subtitle_);
         }
 
-        ImGui::Separator();
-        ImGui::Spacing();
+        panel.RenderSeparator();
 
         if (properties_.empty())
         {
-            ImGui::PushStyleColor(ImGuiCol_Text, ColorMuted());
-            ImGui::TextUnformatted("(no properties)");
-            ImGui::PopStyleColor();
+            panel.RenderTextMuted(fonts, "(no properties)");
         }
         else
         {
             for (const PropertyEntry& entry : properties_)
             {
-                ImGui::PushStyleColor(ImGuiCol_Text, ColorMuted());
-                ImGui::TextUnformatted(entry.key.c_str());
-                ImGui::PopStyleColor();
-
-                ImGui::PushStyleColor(ImGuiCol_Text, ColorPrimary());
-                ImGui::TextUnformatted(("  " + entry.value).c_str());
-                ImGui::PopStyleColor();
+                panel.RenderTextMuted(fonts, entry.key);
+                panel.RenderText(fonts, "  " + entry.value);
             }
         }
     }
 
-    ImGui::End();
+    panel.EndPanel();
 }
 
-void InspectorPanel::SetSelectionTitle(std::string title) { selection_title_ = std::move(title); }
-void InspectorPanel::SetSelectionSubtitle(std::string subtitle) { selection_subtitle_ = std::move(subtitle); }
+void InspectorPanel::SetSelectionTitle(std::string title)
+{
+    selection_title_ = std::move(title);
+}
+
+void InspectorPanel::SetSelectionSubtitle(std::string subtitle)
+{
+    selection_subtitle_ = std::move(subtitle);
+}
 
 void InspectorPanel::AddSection(std::string section_title)
 {
-    if (section_title.empty()) return;
+    if (section_title.empty())
+    {
+        return;
+    }
     sections_.push_back(std::move(section_title));
 }
 
 void InspectorPanel::AddProperty(std::string key, std::string value)
 {
-    if (key.empty()) return;
+    if (key.empty())
+    {
+        return;
+    }
     properties_.push_back(PropertyEntry{std::move(key), std::move(value)});
 }
 

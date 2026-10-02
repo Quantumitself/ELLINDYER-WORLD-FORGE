@@ -259,7 +259,19 @@ void ApplicationLifecycle::ConfigureShell()
     shell_configuration.show_dockspace  = false;
 
     shell_window_.Configure(shell_configuration);
-    shell_layout_.Configure();
+
+    ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
+    layout_configuration.dockspace.left_fraction     = 0.20f;
+    layout_configuration.dockspace.right_fraction    = 0.22f;
+    layout_configuration.dockspace.bottom_fraction   = 0.24f;
+    layout_configuration.dockspace.left_min_width    = 220.0f;
+    layout_configuration.dockspace.right_min_width   = 260.0f;
+    layout_configuration.dockspace.bottom_min_height = 160.0f;
+    layout_configuration.dockspace.center_min_width  = 320.0f;
+    layout_configuration.dockspace.center_min_height = 240.0f;
+    layout_configuration.dockspace.splitter_thickness = 6.0f;
+
+    shell_layout_.Configure(layout_configuration);
 
     shell_layout_.GetProjectExplorer().SetProjectName("Ellindyer World Forge");
     shell_layout_.GetProjectExplorer().AddRootEntry("World");
@@ -381,18 +393,29 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
 
     if (identifier == "view.reset_layout")
     {
-        shell_layout_.ResetLayout();
+        shell_layout_.ResetVisibility();
+        shell_layout_.ResetSplitters();
 
         menu_bar.SetItemChecked("View", "view.toggle_project_explorer", true);
         menu_bar.SetItemChecked("View", "view.toggle_workspace", true);
         menu_bar.SetItemChecked("View", "view.toggle_inspector", true);
         menu_bar.SetItemChecked("View", "view.toggle_status_bar", true);
 
-        shell_window_.SetStatusBarVisible(true);
-
         ellindyer::ui::toolbar::Toolbar& toolbar = shell_window_.GetToolbar();
         toolbar.SetItemChecked("toolbar.toggle_project_explorer", true);
         toolbar.SetItemChecked("toolbar.toggle_inspector", true);
+
+        ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
+        layout_configuration.dockspace.left_fraction     = 0.20f;
+        layout_configuration.dockspace.right_fraction    = 0.22f;
+        layout_configuration.dockspace.bottom_fraction   = 0.24f;
+        layout_configuration.dockspace.left_min_width    = 220.0f;
+        layout_configuration.dockspace.right_min_width   = 260.0f;
+        layout_configuration.dockspace.bottom_min_height = 160.0f;
+        layout_configuration.dockspace.center_min_width  = 320.0f;
+        layout_configuration.dockspace.center_min_height = 240.0f;
+        layout_configuration.dockspace.splitter_thickness = 6.0f;
+        shell_layout_.Configure(layout_configuration);
         return;
     }
 
@@ -714,9 +737,11 @@ void ApplicationLifecycle::RenderMainFrame()
     UpdateStatusBar();
 
     shell_window_.RenderTop(fonts);
+
     shell_layout_.Render(fonts,
                          shell_window_.GetTopConsumedHeight(),
                          shell_window_.GetBottomConsumedHeight());
+
     shell_window_.RenderBottom(fonts);
 }
 

@@ -1,14 +1,23 @@
 #pragma once
 
+#include <memory>
+
 #include <imgui.h>
 
+#include "UI/Docking/DockSpace.hpp"
 #include "UI/Fonts/FontManager.hpp"
 #include "UI/Panels/InspectorPanel.hpp"
 #include "UI/Panels/ProjectExplorerPanel.hpp"
 #include "UI/Panels/WorkspacePanel.hpp"
+#include "UI/StatusBar/StatusBar.hpp"
 
 namespace ellindyer::ui::shell
 {
+
+struct ShellLayoutConfiguration
+{
+    ellindyer::ui::docking::DockSpaceLayout dockspace{};
+};
 
 class ShellLayout
 {
@@ -21,10 +30,8 @@ public:
     ShellLayout(ShellLayout&&) noexcept = delete;
     ShellLayout& operator=(ShellLayout&&) noexcept = delete;
 
-    void Configure();
+    void Configure(const ShellLayoutConfiguration& configuration);
 
-    // top_offset: pixels from top of viewport where the DockSpace begins
-    // bottom_reserved: pixels reserved at bottom of viewport for status bar
     void Render(const ellindyer::ui::fonts::FontSet& fonts,
                 float top_offset,
                 float bottom_reserved);
@@ -32,6 +39,7 @@ public:
     [[nodiscard]] ellindyer::ui::panels::ProjectExplorerPanel& GetProjectExplorer() noexcept;
     [[nodiscard]] ellindyer::ui::panels::WorkspacePanel& GetWorkspace() noexcept;
     [[nodiscard]] ellindyer::ui::panels::InspectorPanel& GetInspector() noexcept;
+    [[nodiscard]] ellindyer::ui::docking::DockSpace& GetDockSpace() noexcept;
 
     void SetProjectExplorerVisible(bool visible) noexcept;
     void SetWorkspaceVisible(bool visible) noexcept;
@@ -42,20 +50,27 @@ public:
     [[nodiscard]] bool IsInspectorVisible() const noexcept;
 
     void ResetVisibility() noexcept;
-    void ResetLayout() noexcept;
+    void ResetSplitters() noexcept;
 
 private:
-    void EnsureDefaultLayout(ImGuiID dockspace_id, ImVec2 size);
+    void RenderBody(const ellindyer::ui::fonts::FontSet& fonts,
+                    float top_offset,
+                    float bottom_reserved);
 
-    ellindyer::ui::panels::ProjectExplorerPanel project_explorer_;
-    ellindyer::ui::panels::WorkspacePanel       workspace_;
-    ellindyer::ui::panels::InspectorPanel       inspector_;
+    void InitializePanels();
 
-    bool project_explorer_visible_ = true;
-    bool workspace_visible_        = true;
-    bool inspector_visible_        = true;
+    ShellLayoutConfiguration                     configuration_{};
+    ellindyer::ui::docking::DockSpace            dock_space_;
+    ellindyer::ui::panels::ProjectExplorerPanel  project_explorer_;
+    ellindyer::ui::panels::WorkspacePanel        workspace_;
+    ellindyer::ui::panels::InspectorPanel        inspector_;
 
-    bool layout_initialized_ = false;
+    std::shared_ptr<ellindyer::ui::docking::DockPanel> project_explorer_dock_;
+    std::shared_ptr<ellindyer::ui::docking::DockPanel> workspace_dock_;
+    std::shared_ptr<ellindyer::ui::docking::DockPanel> inspector_dock_;
+
+    ellindyer::ui::fonts::FontSet                cached_fonts_{};
+    bool                                         panels_initialized_ = false;
 };
 
 } // namespace ellindyer::ui::shell

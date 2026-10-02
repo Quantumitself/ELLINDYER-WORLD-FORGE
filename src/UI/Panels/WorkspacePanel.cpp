@@ -7,22 +7,28 @@
 namespace ellindyer::ui::panels
 {
 
-namespace
-{
-ImVec4 ColorPrimary() { return ImVec4(1.00f, 1.00f, 1.00f, 1.00f); }
-ImVec4 ColorMuted()   { return ImVec4(0.45f, 0.45f, 0.45f, 1.00f); }
-} // namespace
-
 WorkspacePanel::WorkspacePanel() = default;
+
 WorkspacePanel::~WorkspacePanel() = default;
 
-void WorkspacePanel::Render(const ellindyer::ui::fonts::FontSet& fonts)
+void WorkspacePanel::Render(
+    const ellindyer::ui::fonts::FontSet& fonts,
+    const ellindyer::ui::layout::PanelLayoutMetrics& metrics)
 {
-    if (!ImGui::Begin("Workspace"))
-    {
-        ImGui::End();
-        return;
-    }
+    using ellindyer::ui::layout::Panel;
+    using ellindyer::ui::layout::PanelStyle;
+
+    Panel panel("Workspace", title_);
+
+    PanelStyle style{};
+    style.padding_x = 14.0f;
+    style.padding_y = 14.0f;
+    panel.SetStyle(style);
+    panel.SetMinWidth(metrics.center_width);
+
+    panel.BeginPanel(metrics.center_width, metrics.panel_height);
+
+    panel.RenderHeader(fonts);
 
     if (!description_.empty())
     {
@@ -30,32 +36,43 @@ void WorkspacePanel::Render(const ellindyer::ui::fonts::FontSet& fonts)
         {
             ImGui::PushFont(fonts.large_regular, fonts.large_regular->LegacySize);
         }
-        ImGui::PushStyleColor(ImGuiCol_Text, ColorPrimary());
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.00f, 1.00f, 1.00f, 1.00f));
         ImGui::TextUnformatted(description_.c_str());
         ImGui::PopStyleColor();
+
         if (fonts.large_regular != nullptr)
         {
             ImGui::PopFont();
         }
+
         ImGui::Spacing();
     }
 
-    ImGui::PushStyleColor(ImGuiCol_Text, ColorMuted());
     for (const std::string& hint : hints_)
     {
-        ImGui::TextUnformatted(hint.c_str());
+        panel.RenderTextMuted(fonts, hint);
     }
-    ImGui::PopStyleColor();
 
-    ImGui::End();
+    panel.EndPanel();
 }
 
-void WorkspacePanel::SetTitle(std::string title) { title_ = std::move(title); }
-void WorkspacePanel::SetDescription(std::string description) { description_ = std::move(description); }
+void WorkspacePanel::SetTitle(std::string title)
+{
+    title_ = std::move(title);
+}
+
+void WorkspacePanel::SetDescription(std::string description)
+{
+    description_ = std::move(description);
+}
 
 void WorkspacePanel::AddHint(std::string hint)
 {
-    if (hint.empty()) return;
+    if (hint.empty())
+    {
+        return;
+    }
     hints_.push_back(std::move(hint));
 }
 

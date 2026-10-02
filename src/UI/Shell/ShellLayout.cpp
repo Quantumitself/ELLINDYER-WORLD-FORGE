@@ -1,35 +1,40 @@
 #include "UI/Shell/ShellLayout.hpp"
 
+#include <algorithm>
+
 #include <imgui.h>
 #include <imgui_internal.h>
 
 namespace ellindyer::ui::shell
 {
 
-namespace
-{
-
-constexpr const char* kDockSpaceName             = "WorldForgeDockSpace";
-constexpr const char* kProjectExplorerWindowName = "Project Explorer";
-constexpr const char* kWorkspaceWindowName       = "Workspace";
-constexpr const char* kInspectorWindowName       = "Inspector";
-
-} // namespace
-
 ShellLayout::ShellLayout() = default;
 ShellLayout::~ShellLayout() = default;
 
-void ShellLayout::Configure()
+void ShellLayout::Configure(const ShellLayoutConfiguration& configuration)
 {
+    configuration_ = configuration;
+    dock_space_.SetLayout(configuration_.dockspace);
+    InitializePanels();
 }
 
 void ShellLayout::Render(const ellindyer::ui::fonts::FontSet& fonts,
                          float top_offset,
                          float bottom_reserved)
 {
+    cached_fonts_ = fonts;
+    RenderBody(fonts, top_offset, bottom_reserved);
+}
+
+void ShellLayout::RenderBody(const ellindyer::ui::fonts::FontSet& fonts,
+                             float top_offset,
+                             float bottom_reserved)
+{
+    (void)fonts;
+
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-    const float host_y = top_offset;
+    const float host_y      = viewport->Pos.y + top_offset;
     const float host_height = viewport->Size.y - top_offset - bottom_reserved;
 
     if (host_height <= 0.0f)
@@ -37,11 +42,8 @@ void ShellLayout::Render(const ellindyer::ui::fonts::FontSet& fonts,
         return;
     }
 
-    const ImVec2 host_pos(viewport->Pos.x, viewport->Pos.y + host_y);
-    const ImVec2 host_size(viewport->Size.x, host_height);
-
-    ImGui::SetNextWindowPos(host_pos);
-    ImGui::SetNextWindowSize(host_size);
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, host_y));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, host_height));
     ImGui::SetNextWindowViewport(viewport->ID);
 
     constexpr ImGuiWindowFlags host_flags =
@@ -60,76 +62,125 @@ void ShellLayout::Render(const ellindyer::ui::fonts::FontSet& fonts,
 
     ImGui::Begin("##WorldForgeDockHost", nullptr, host_flags);
 
-    const ImGuiID dockspace_id = ImGui::GetID(kDockSpaceName);
-    EnsureDefaultLayout(dockspace_id, host_size);
-
-    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+    dock_space_.Render(fonts);
 
     ImGui::End();
     ImGui::PopStyleVar(3);
-
-    if (project_explorer_visible_)
-    {
-        project_explorer_.Render(fonts);
-    }
-    if (workspace_visible_)
-    {
-        workspace_.Render(fonts);
-    }
-    if (inspector_visible_)
-    {
-        inspector_.Render(fonts);
-    }
 }
 
-void ShellLayout::EnsureDefaultLayout(ImGuiID dockspace_id, ImVec2 size)
+ellindyer::ui::panels::ProjectExplorerPanel& ShellLayout::GetProjectExplorer() noexcept
 {
-    if (layout_initialized_)
-    {
-        return;
-    }
-    layout_initialized_ = true;
-
-    ImGui::DockBuilderRemoveNode(dockspace_id);
-    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
-    ImGui::DockBuilderSetNodeSize(dockspace_id, size);
-
-    ImGuiID center_id = dockspace_id;
-    const ImGuiID left_id =
-        ImGui::DockBuilderSplitNode(center_id, ImGuiDir_Left, 0.20f, nullptr, &center_id);
-    const ImGuiID right_id =
-        ImGui::DockBuilderSplitNode(center_id, ImGuiDir_Right, 0.22f, nullptr, &center_id);
-
-    ImGui::DockBuilderDockWindow(kProjectExplorerWindowName, left_id);
-    ImGui::DockBuilderDockWindow(kWorkspaceWindowName,       center_id);
-    ImGui::DockBuilderDockWindow(kInspectorWindowName,       right_id);
-
-    ImGui::DockBuilderFinish(dockspace_id);
+    return project_explorer_;
 }
 
-ellindyer::ui::panels::ProjectExplorerPanel& ShellLayout::GetProjectExplorer() noexcept { return project_explorer_; }
-ellindyer::ui::panels::WorkspacePanel& ShellLayout::GetWorkspace() noexcept { return workspace_; }
-ellindyer::ui::panels::InspectorPanel& ShellLayout::GetInspector() noexcept { return inspector_; }
+ellindyer::ui::panels::WorkspacePanel& ShellLayout::GetWorkspace() noexcept
+{
+    return workspace_;
+}
 
-void ShellLayout::SetProjectExplorerVisible(bool visible) noexcept { project_explorer_visible_ = visible; }
-void ShellLayout::SetWorkspaceVisible(bool visible) noexcept       { workspace_visible_ = visible; }
-void ShellLayout::SetInspectorVisible(bool visible) noexcept       { inspector_visible_ = visible; }
+ellindyer::ui::panels::InspectorPanel& ShellLayout::GetInspector() noexcept
+{
+    return inspector_;
+}
 
-bool ShellLayout::IsProjectExplorerVisible() const noexcept { return project_explorer_visible_; }
-bool ShellLayout::IsWorkspaceVisible() const noexcept       { return workspace_visible_; }
-bool ShellLayout::IsInspectorVisible() const noexcept       { return inspector_visible_; }
+ellindyer::ui::docking::DockSpace& ShellLayout::GetDockSpace() noexcept
+{
+    return dock_space_;
+}
+
+void ShellLayout::SetProjectExplorerVisible(bool visible) noexcept
+{
+    dock_space_.SetZoneVisible(ellindyer::ui::docking::DockZone::Left, visible);
+}
+
+void ShellLayout::SetWorkspaceVisible(bool visible) noexcept
+{
+    dock_space_.SetZoneVisible(ellindyer::ui::docking::DockZone::Center, visible);
+}
+
+void ShellLayout::SetInspectorVisible(bool visible) noexcept
+{
+    dock_space_.SetZoneVisible(ellindyer::ui::docking::DockZone::Right, visible);
+}
+
+bool ShellLayout::IsProjectExplorerVisible() const noexcept
+{
+    return dock_space_.IsZoneVisible(ellindyer::ui::docking::DockZone::Left);
+}
+
+bool ShellLayout::IsWorkspaceVisible() const noexcept
+{
+    return dock_space_.IsZoneVisible(ellindyer::ui::docking::DockZone::Center);
+}
+
+bool ShellLayout::IsInspectorVisible() const noexcept
+{
+    return dock_space_.IsZoneVisible(ellindyer::ui::docking::DockZone::Right);
+}
 
 void ShellLayout::ResetVisibility() noexcept
 {
-    project_explorer_visible_ = true;
-    workspace_visible_        = true;
-    inspector_visible_        = true;
+    dock_space_.SetZoneVisible(ellindyer::ui::docking::DockZone::Left, true);
+    dock_space_.SetZoneVisible(ellindyer::ui::docking::DockZone::Center, true);
+    dock_space_.SetZoneVisible(ellindyer::ui::docking::DockZone::Right, true);
 }
 
-void ShellLayout::ResetLayout() noexcept
+void ShellLayout::ResetSplitters() noexcept
 {
-    layout_initialized_ = false;
-    ResetVisibility();
+    dock_space_.ResetSplitters();
+}
+
+void ShellLayout::InitializePanels()
+{
+    using ellindyer::ui::docking::DockPanel;
+    using ellindyer::ui::docking::DockZone;
+
+    dock_space_.ClearPanels();
+
+    project_explorer_dock_ = std::make_shared<DockPanel>("ProjectExplorer", "Project Explorer");
+    project_explorer_dock_->SetMinWidth(220.0f);
+    project_explorer_dock_->SetContentRenderer(
+        [this]()
+        {
+            ellindyer::ui::layout::PanelLayoutMetrics metrics{};
+            metrics.left_width   = dock_space_.GetLeftWidth();
+            metrics.center_width = dock_space_.GetCenterWidth();
+            metrics.right_width  = dock_space_.GetRightWidth();
+            metrics.panel_height = dock_space_.GetCenterHeight() + dock_space_.GetBottomHeight();
+            project_explorer_.Render(cached_fonts_, metrics);
+        });
+    dock_space_.AddPanel(DockZone::Left, project_explorer_dock_);
+
+    workspace_dock_ = std::make_shared<DockPanel>("Workspace", "Workspace");
+    workspace_dock_->SetMinWidth(320.0f);
+    workspace_dock_->SetMinHeight(240.0f);
+    workspace_dock_->SetContentRenderer(
+        [this]()
+        {
+            ellindyer::ui::layout::PanelLayoutMetrics metrics{};
+            metrics.left_width   = dock_space_.GetLeftWidth();
+            metrics.center_width = dock_space_.GetCenterWidth();
+            metrics.right_width  = dock_space_.GetRightWidth();
+            metrics.panel_height = dock_space_.GetCenterHeight();
+            workspace_.Render(cached_fonts_, metrics);
+        });
+    dock_space_.AddPanel(DockZone::Center, workspace_dock_);
+
+    inspector_dock_ = std::make_shared<DockPanel>("Inspector", "Inspector");
+    inspector_dock_->SetMinWidth(260.0f);
+    inspector_dock_->SetContentRenderer(
+        [this]()
+        {
+            ellindyer::ui::layout::PanelLayoutMetrics metrics{};
+            metrics.left_width   = dock_space_.GetLeftWidth();
+            metrics.center_width = dock_space_.GetCenterWidth();
+            metrics.right_width  = dock_space_.GetRightWidth();
+            metrics.panel_height = dock_space_.GetCenterHeight() + dock_space_.GetBottomHeight();
+            inspector_.Render(cached_fonts_, metrics);
+        });
+    dock_space_.AddPanel(DockZone::Right, inspector_dock_);
+
+    panels_initialized_ = true;
 }
 
 } // namespace ellindyer::ui::shell
