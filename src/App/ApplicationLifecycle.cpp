@@ -13,6 +13,7 @@
 #include "Core/Logger.hpp"
 #include "Core/LoggerExtensions.hpp"
 #include "Core/LogMacros.hpp"
+#include "UI/Docking/DockSpace.hpp"
 #include "UI/Menu/ApplicationMenuBuilder.hpp"
 #include "UI/Toolbar/ApplicationToolbarBuilder.hpp"
 
@@ -31,8 +32,14 @@ constexpr const char* kLineEnding = "\n";
 constexpr const char*  kLogFileName      = "EllindyerWorldForge.log";
 constexpr std::size_t  kLogMaxSizeBytes  = 4U * 1024U * 1024U;
 constexpr std::size_t  kLogMaxFiles      = 4;
-constexpr std::uint32_t kDefaultWindowWidth  = 1400U;
-constexpr std::uint32_t kDefaultWindowHeight = 900U;
+
+ellindyer::core::LogLevel ParseLogLevel(const std::string& level_text)
+{
+    using ellindyer::core::LogLevel;
+    using ellindyer::core::LogLevelFromString;
+
+    return LogLevelFromString(level_text);
+}
 
 } // namespace
 
@@ -63,6 +70,13 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
 
     state_ = ApplicationState::Initializing;
 
+    const Result<void> settings_result = LoadApplicationSettings();
+    if (settings_result.HasError())
+    {
+        ELLINDYER_LOG_WARNING("Failed to load settings, using defaults: " +
+                              settings_result.GetError().ToDiagnosticString());
+    }
+
     const Result<void> logging_result = InitializeLogging();
     if (logging_result.HasError())
     {
@@ -80,6 +94,7 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
         return ui_result;
     }
 
+    ApplySettingsToUI();
     ConfigureShell();
     ConfigureMenuBar();
     ConfigureToolbar();
@@ -110,7 +125,15 @@ ellindyer::core::Result<int> ApplicationLifecycle::Run()
     ELLINDYER_LOG_INFO("Application main loop entered");
     ui_host_->ShowWindow();
 
-    RunSplashStage();
+    if (context_.GetSettingsManager().GetSettings().splash_enabled)
+    {
+        RunSplashStage();
+    }
+    else
+    {
+        splash_stage_complete_ = true;
+    }
+
     RunMainLoop();
 
     ELLINDYER_LOG_INFO("Application main loop exited");
@@ -126,6 +149,12 @@ void ApplicationLifecycle::Shutdown()
     }
 
     state_ = ApplicationState::ShuttingDown;
+
+    if (ui_host_ && ui_host_->IsInitialized())
+    {
+        CaptureUISettings();
+        (void)SaveApplicationSettings();
+    }
 
     if (ui_host_)
     {
@@ -161,17 +190,19 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeLogging()
     using ellindyer::core::LogBootstrap;
     using ellindyer::core::LogConfiguration;
     using ellindyer::core::LogConfigurationBuilder;
-    using ellindyer::core::LogLevel;
     using ellindyer::core::MakeError;
     using ellindyer::core::ErrorCode;
     using ellindyer::core::Result;
 
+    const ellindyer::core::settings::ApplicationSettings& settings =
+        context_.GetSettingsManager().GetSettings();
+
     LogConfigurationBuilder builder;
     builder
-        .WithLevel(LogLevel::Info)
-        .WithConsole(true, true, false);
+        .WithLevel(ParseLogLevel(settings.logging_level))
+        .WithConsole(settings.logging_console, true, false);
 
-    if (context_.AreUserDirectoriesReady())
+    if (settings.logging_file && context_.AreUserDirectoriesReady())
     {
         builder.WithFile(context_.GetLogsDirectory() / kLogFileName,
                          true, kLogMaxSizeBytes, kLogMaxFiles);
@@ -188,6 +219,41 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeLogging()
     return Result<void>{};
 }
 
+ellindyer::core::Result<void> ApplicationLifecycle::LoadApplicationSettings()
+{
+    using ellindyer::core::Result;
+
+    ellindyer::core::settings::ApplicationSettingsManager& manager =
+        context_.GetSettingsManager();
+
+    if (!manager.GetFilePath().empty())
+    {
+        const Result<void> load_result = manager.Load();
+        if (load_result.HasError())
+        {
+            return load_result;
+        }
+    }
+
+    settings_loaded_ = true;
+    return Result<void>{};
+}
+
+ellindyer::core::Result<void> ApplicationLifecycle::SaveApplicationSettings()
+{
+    using ellindyer::core::Result;
+
+    ellindyer::core::settings::ApplicationSettingsManager& manager =
+        context_.GetSettingsManager();
+
+    if (manager.GetFilePath().empty())
+    {
+        return Result<void>{};
+    }
+
+    return manager.Save();
+}
+
 ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
 {
     using ellindyer::core::ErrorCode;
@@ -200,10 +266,13 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
                                       "UI host instance is not available."));
     }
 
+    const ellindyer::core::settings::ApplicationSettings& settings =
+        context_.GetSettingsManager().GetSettings();
+
     ellindyer::ui::UIHostDescription description{};
     description.window_title  = L"Ellindyer World Forge";
-    description.window_width  = kDefaultWindowWidth;
-    description.window_height = kDefaultWindowHeight;
+    description.window_width  = settings.window_width;
+    description.window_height = settings.window_height;
     description.vsync         = true;
     description.centered      = true;
     description.resizable     = true;
@@ -218,8 +287,8 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
     ELLINDYER_LOG_INFO("UI host initialized");
 
     ellindyer::ui::splash::SplashScreenConfiguration splash_configuration{};
-    splash_configuration.minimum_duration_seconds = 1.75f;
-    splash_configuration.maximum_duration_seconds = 4.00f;
+    splash_configuration.minimum_duration_seconds = settings.splash_minimum_seconds;
+    splash_configuration.maximum_duration_seconds = settings.splash_maximum_seconds;
     splash_configuration.show_progress            = true;
     splash_configuration.show_status_text         = true;
 
@@ -230,6 +299,8 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
 
     splash_.AddStep("Resolving paths");
     splash_.MarkStepCompleted("Resolving paths");
+    splash_.AddStep("Loading settings");
+    splash_.MarkStepCompleted("Loading settings");
     splash_.AddStep("Initializing logging");
     splash_.MarkStepCompleted("Initializing logging");
     splash_.AddStep("Loading branding assets");
@@ -248,31 +319,67 @@ ellindyer::core::Result<void> ApplicationLifecycle::InitializeUI()
     return Result<void>{};
 }
 
-void ApplicationLifecycle::ConfigureShell()
+void ApplicationLifecycle::ApplySettingsToUI()
 {
+    const ellindyer::core::settings::ApplicationSettings& settings =
+        context_.GetSettingsManager().GetSettings();
+
     ellindyer::ui::shell::ShellWindowConfiguration shell_configuration{};
     shell_configuration.title           = context_.GetApplicationInfo().name;
     shell_configuration.subtitle        = context_.GetApplicationInfo().tagline;
-    shell_configuration.show_menu_bar   = true;
-    shell_configuration.show_toolbar    = true;
-    shell_configuration.show_status_bar = true;
+    shell_configuration.show_menu_bar   = settings.show_menu_bar;
+    shell_configuration.show_toolbar    = settings.show_toolbar;
+    shell_configuration.show_status_bar = settings.show_status_bar;
     shell_configuration.show_dockspace  = false;
-
     shell_window_.Configure(shell_configuration);
 
     ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
-    layout_configuration.dockspace.left_fraction     = 0.20f;
-    layout_configuration.dockspace.right_fraction    = 0.22f;
-    layout_configuration.dockspace.bottom_fraction   = 0.24f;
-    layout_configuration.dockspace.left_min_width    = 220.0f;
-    layout_configuration.dockspace.right_min_width   = 260.0f;
-    layout_configuration.dockspace.bottom_min_height = 160.0f;
-    layout_configuration.dockspace.center_min_width  = 320.0f;
-    layout_configuration.dockspace.center_min_height = 240.0f;
+    layout_configuration.dockspace.left_fraction      = settings.left_panel_fraction;
+    layout_configuration.dockspace.right_fraction     = settings.right_panel_fraction;
+    layout_configuration.dockspace.bottom_fraction    = settings.bottom_panel_fraction;
+    layout_configuration.dockspace.left_min_width     = 220.0f;
+    layout_configuration.dockspace.right_min_width    = 260.0f;
+    layout_configuration.dockspace.bottom_min_height  = 160.0f;
+    layout_configuration.dockspace.center_min_width   = 320.0f;
+    layout_configuration.dockspace.center_min_height  = 240.0f;
     layout_configuration.dockspace.splitter_thickness = 6.0f;
-
     shell_layout_.Configure(layout_configuration);
 
+    shell_layout_.SetProjectExplorerVisible(settings.show_project_explorer);
+    shell_layout_.SetWorkspaceVisible(settings.show_workspace);
+    shell_layout_.SetInspectorVisible(settings.show_inspector);
+    shell_window_.SetStatusBarVisible(settings.show_status_bar);
+}
+
+void ApplicationLifecycle::CaptureUISettings()
+{
+    ellindyer::core::settings::ApplicationSettings& settings =
+        context_.GetSettingsManager().GetSettings();
+
+    const ellindyer::ui::docking::DockSpaceLayout& dockspace =
+        shell_layout_.GetDockSpace().GetLayout();
+
+    settings.left_panel_fraction   = dockspace.left_fraction;
+    settings.right_panel_fraction  = dockspace.right_fraction;
+    settings.bottom_panel_fraction = dockspace.bottom_fraction;
+
+    settings.show_project_explorer = shell_layout_.IsProjectExplorerVisible();
+    settings.show_workspace        = shell_layout_.IsWorkspaceVisible();
+    settings.show_inspector        = shell_layout_.IsInspectorVisible();
+    settings.show_status_bar       = shell_window_.IsStatusBarVisible();
+
+    settings.show_menu_bar = shell_window_.IsMenuBarVisible();
+    settings.show_toolbar  = shell_window_.IsToolbarVisible();
+
+    if (ui_host_)
+    {
+        settings.window_width  = ui_host_->GetClientWidth();
+        settings.window_height = ui_host_->GetClientHeight();
+    }
+}
+
+void ApplicationLifecycle::ConfigureShell()
+{
     shell_layout_.GetProjectExplorer().SetProjectName("Ellindyer World Forge");
     shell_layout_.GetProjectExplorer().AddRootEntry("World");
     shell_layout_.GetProjectExplorer().AddRootEntry("Schemas");
@@ -406,16 +513,17 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
         toolbar.SetItemChecked("toolbar.toggle_inspector", true);
 
         ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
-        layout_configuration.dockspace.left_fraction     = 0.20f;
-        layout_configuration.dockspace.right_fraction    = 0.22f;
-        layout_configuration.dockspace.bottom_fraction   = 0.24f;
-        layout_configuration.dockspace.left_min_width    = 220.0f;
-        layout_configuration.dockspace.right_min_width   = 260.0f;
-        layout_configuration.dockspace.bottom_min_height = 160.0f;
-        layout_configuration.dockspace.center_min_width  = 320.0f;
-        layout_configuration.dockspace.center_min_height = 240.0f;
+        layout_configuration.dockspace.left_fraction      = 0.20f;
+        layout_configuration.dockspace.right_fraction     = 0.22f;
+        layout_configuration.dockspace.bottom_fraction    = 0.24f;
+        layout_configuration.dockspace.left_min_width     = 220.0f;
+        layout_configuration.dockspace.right_min_width    = 260.0f;
+        layout_configuration.dockspace.bottom_min_height  = 160.0f;
+        layout_configuration.dockspace.center_min_width   = 320.0f;
+        layout_configuration.dockspace.center_min_height  = 240.0f;
         layout_configuration.dockspace.splitter_thickness = 6.0f;
         shell_layout_.Configure(layout_configuration);
+
         return;
     }
 
@@ -737,11 +845,9 @@ void ApplicationLifecycle::RenderMainFrame()
     UpdateStatusBar();
 
     shell_window_.RenderTop(fonts);
-
     shell_layout_.Render(fonts,
                          shell_window_.GetTopConsumedHeight(),
                          shell_window_.GetBottomConsumedHeight());
-
     shell_window_.RenderBottom(fonts);
 }
 
@@ -780,9 +886,19 @@ void ApplicationLifecycle::EmitStartupDiagnostics()
         context_.GetLogsDirectory().generic_string());
     LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "config_dir",
         context_.GetConfigurationDirectory().generic_string());
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "settings_file",
+        context_.GetSettingsFilePath().generic_string());
 
     LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "user_dirs_ready",
         context_.AreUserDirectoriesReady() ? std::string_view{"true"} : std::string_view{"false"});
+
+    const ellindyer::core::settings::ApplicationSettings& settings =
+        context_.GetSettingsManager().GetSettings();
+
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "settings_loaded",
+        settings_loaded_ ? std::string_view{"true"} : std::string_view{"false"});
+    LoggerExtensions::LogKeyValue(GetLogger(), LogLevel::Info, "logging_level",
+        settings.logging_level);
 
     ELLINDYER_LOG_INFO("Application initialized");
 }

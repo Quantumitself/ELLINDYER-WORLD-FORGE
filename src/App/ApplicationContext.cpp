@@ -8,8 +8,15 @@ namespace ellindyer::app
 ApplicationContext::ApplicationContext()
     : application_info_(ellindyer::core::GetApplicationInfo())
     , build_info_(ellindyer::core::GetBuildInfo())
+    , settings_manager_(std::make_unique<
+        ellindyer::core::settings::ApplicationSettingsManager>())
 {
     ResolvePaths();
+
+    if (!settings_file_path_.empty())
+    {
+        settings_manager_->SetFilePath(settings_file_path_);
+    }
 }
 
 ApplicationContext::~ApplicationContext() = default;
@@ -69,9 +76,26 @@ const std::filesystem::path& ApplicationContext::GetScratchDirectory() const noe
     return scratch_directory_;
 }
 
+const std::filesystem::path& ApplicationContext::GetSettingsFilePath() const noexcept
+{
+    return settings_file_path_;
+}
+
 bool ApplicationContext::AreUserDirectoriesReady() const noexcept
 {
     return user_directories_ready_;
+}
+
+ellindyer::core::settings::ApplicationSettingsManager&
+ApplicationContext::GetSettingsManager() noexcept
+{
+    return *settings_manager_;
+}
+
+const ellindyer::core::settings::ApplicationSettingsManager&
+ApplicationContext::GetSettingsManager() const noexcept
+{
+    return *settings_manager_;
 }
 
 void ApplicationContext::ResolvePaths()
@@ -90,6 +114,11 @@ void ApplicationContext::ResolvePaths()
     if (!user_data_directory_.empty())
     {
         scratch_directory_ = user_data_directory_ / "scratch";
+    }
+
+    if (!configuration_directory_.empty())
+    {
+        settings_file_path_ = configuration_directory_ / "settings.conf";
     }
 
     user_directories_ready_ = ApplicationPaths::EnsureUserDirectoriesExist();

@@ -6,6 +6,7 @@
 
 #include "Core/ApplicationInfo.hpp"
 #include "Core/BuildInfo.hpp"
+#include "Core/Settings/ApplicationSettings.hpp"
 
 namespace ellindyer::app
 {
@@ -43,7 +44,15 @@ public:
 
     [[nodiscard]] const std::filesystem::path& GetScratchDirectory() const noexcept;
 
+    [[nodiscard]] const std::filesystem::path& GetSettingsFilePath() const noexcept;
+
     [[nodiscard]] bool AreUserDirectoriesReady() const noexcept;
+
+    [[nodiscard]] ellindyer::core::settings::ApplicationSettingsManager&
+        GetSettingsManager() noexcept;
+
+    [[nodiscard]] const ellindyer::core::settings::ApplicationSettingsManager&
+        GetSettingsManager() const noexcept;
 
 private:
     void ResolvePaths();
@@ -59,7 +68,11 @@ private:
     std::filesystem::path              logs_directory_;
     std::filesystem::path              configuration_directory_;
     std::filesystem::path              scratch_directory_;
+    std::filesystem::path              settings_file_path_;
     bool                               user_directories_ready_ = false;
+
+    std::unique_ptr<ellindyer::core::settings::ApplicationSettingsManager>
+                                       settings_manager_;
 };
 
 } // namespace ellindyer::app

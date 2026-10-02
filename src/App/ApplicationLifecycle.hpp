@@ -2,11 +2,11 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>
 
 #include "App/ApplicationContext.hpp"
 #include "Core/Error.hpp"
 #include "Core/Result.hpp"
+#include "Core/Settings/ApplicationSettings.hpp"
 #include "UI/Menu/ApplicationMenuBuilder.hpp"
 #include "UI/Shell/ShellLayout.hpp"
 #include "UI/Shell/ShellWindow.hpp"
@@ -39,42 +39,68 @@ public:
     ApplicationLifecycle& operator=(ApplicationLifecycle&&) noexcept = delete;
 
     [[nodiscard]] ellindyer::core::Result<void> Initialize();
+
     [[nodiscard]] ellindyer::core::Result<int> Run();
+
     void Shutdown();
 
     [[nodiscard]] ApplicationState GetState() const noexcept;
+
     [[nodiscard]] const ApplicationContext& GetContext() const noexcept;
 
 private:
     [[nodiscard]] ellindyer::core::Result<void> InitializeLogging();
+
+    [[nodiscard]] ellindyer::core::Result<void> LoadApplicationSettings();
+
+    [[nodiscard]] ellindyer::core::Result<void> SaveApplicationSettings();
+
     [[nodiscard]] ellindyer::core::Result<void> InitializeUI();
 
+    void ApplySettingsToUI();
+
+    void CaptureUISettings();
+
     void ConfigureShell();
+
     void ConfigureMenuBar();
+
     void ConfigureToolbar();
+
     void ConfigureStatusBar();
 
     void HandleMenuCommand(const std::string& identifier);
+
     void HandleToolbarCommand(const std::string& identifier);
+
     void HandleStatusBarCommand(const std::string& identifier);
 
     ellindyer::ui::menu::ApplicationMenuHandlers BuildMenuHandlers();
+
     ellindyer::ui::menu::ApplicationMenuState BuildMenuState() const;
+
     ellindyer::ui::toolbar::ApplicationToolbarHandlers BuildToolbarHandlers();
+
     ellindyer::ui::toolbar::ApplicationToolbarState BuildToolbarState() const;
+
     ellindyer::ui::statusbar::ApplicationStatusBarState BuildStatusBarState() const;
 
     void UpdateStatusBar();
 
     void RunSplashStage();
+
     void RunMainLoop();
+
     void RenderMainFrame();
+
     void EmitStartupDiagnostics();
+
     void EmitShutdownDiagnostics();
 
     ApplicationContext context_;
     ApplicationState   state_ = ApplicationState::Uninitialized;
     bool               logging_initialized_ = false;
+    bool               settings_loaded_     = false;
     bool               should_exit_         = false;
 
     std::unique_ptr<ellindyer::ui::UIHost> ui_host_;

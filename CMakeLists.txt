@@ -163,6 +163,9 @@ set(ELLINDYER_APP_SOURCES
     "${ELLINDYER_SOURCES_DIR}/Core/PathHelpers.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/FileWatcher.cpp"
     "${ELLINDYER_SOURCES_DIR}/Core/FileSystemSummary.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/Settings/SettingsValue.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/Settings/SettingsStore.cpp"
+    "${ELLINDYER_SOURCES_DIR}/Core/Settings/ApplicationSettings.cpp"
 )
 
 add_executable(${ELLINDYER_APP_TARGET}
