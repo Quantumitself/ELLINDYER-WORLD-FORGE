@@ -1,4 +1,5 @@
 #include "UI/Dialogs/SaveProjectAsDialog.hpp"
+#include "UI/Dialogs/PlatformFileDialog.hpp"
 
 #include <system_error>
 #include <utility>
@@ -45,6 +46,18 @@ SaveProjectAsDialog::SaveProjectAsDialog()
     PathPickerStyle picker_style{};
     picker_style.browse_button_width = 78.0f;
     target_picker_.SetStyle(picker_style);
+
+    target_picker_.SetBrowseHandler([this]()
+    {
+        const std::filesystem::path initial = target_picker_.GetValue();
+        const std::filesystem::path picked =
+            PlatformFileDialog::PickFolder(initial);
+        if (!picked.empty())
+        {
+            target_picker_.SetValue(picked);
+        }
+    });
+
 }
 
 SaveProjectAsDialog::~SaveProjectAsDialog() = default;

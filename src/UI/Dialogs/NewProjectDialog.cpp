@@ -8,6 +8,8 @@
 
 #include "Core/ErrorCode.hpp"
 #include "Core/PathHelpers.hpp"
+#include "UI/Dialogs/PlatformFileDialog.hpp"
+#include "UI/ImGui/ImGuiCompat.hpp"
 
 namespace ellindyer::ui::dialogs
 {
@@ -23,6 +25,13 @@ constexpr std::size_t kVersionBufferSize     = sizeof(NewProjectDialog::version_
 constexpr std::size_t kEngineBufferSize      = sizeof(NewProjectDialog::engine_buffer_);
 constexpr std::size_t kDescriptionBufferSize = sizeof(NewProjectDialog::description_buffer_);
 constexpr std::size_t kWorldDescriptionBufferSize = sizeof(NewProjectDialog::world_description_buffer_);
+constexpr std::size_t kCustomEngineBufferSize = sizeof(NewProjectDialog::custom_engine_buffer_);
+
+const char* kEngineOptions[] = {
+    "Unreal", "Unity", "Godot", "Universal", "Custom"
+};
+constexpr int kEngineOptionCount = IM_ARRAYSIZE(kEngineOptions);
+constexpr int kCustomEngineIndex = kEngineOptionCount - 1;
 
 void CopyText(char* buffer, std::size_t buffer_size, const std::string& text)
 {
@@ -50,6 +59,18 @@ std::string Trim(const std::string& text)
     return text.substr(start, end - start);
 }
 
+int IndexOfEngine(const std::string& engine)
+{
+    for (int i = 0; i < kEngineOptionCount; ++i)
+    {
+        if (engine == kEngineOptions[i])
+        {
+            return i;
+        }
+    }
+    return kCustomEngineIndex;
+}
+
 } // namespace
 
 NewProjectDialog::NewProjectDialog()
@@ -59,7 +80,7 @@ NewProjectDialog::NewProjectDialog()
 
     DialogBaseStyle style{};
     style.width  = 620.0f;
-    style.height = 560.0f;
+    style.height = 620.0f;
     SetStyle(style);
 
     root_picker_.SetLabel("Project Root");
@@ -68,6 +89,17 @@ NewProjectDialog::NewProjectDialog()
     PathPickerStyle picker_style{};
     picker_style.browse_button_width = 78.0f;
     root_picker_.SetStyle(picker_style);
+
+    root_picker_.SetBrowseHandler([this]()
+    {
+        const std::filesystem::path initial = root_picker_.GetValue();
+        const std::filesystem::path picked =
+            PlatformFileDialog::PickFolder(initial);
+        if (!picked.empty())
+        {
+            root_picker_.SetValue(picked);
+        }
+    });
 }
 
 NewProjectDialog::~NewProjectDialog() = default;
@@ -90,20 +122,27 @@ const NewProjectRequest& NewProjectDialog::GetRequest() const noexcept
 void NewProjectDialog::OnOpened()
 {
     LoadDefaultsIfEmpty();
+
+    // Set combo index from current engine_buffer_
+    const std::string engine = Trim(std::string(engine_buffer_));
+    engine_combo_index_ = IndexOfEngine(engine);
+
+    if (engine_combo_index_ == kCustomEngineIndex)
+    {
+        CopyText(custom_engine_buffer_, kCustomEngineBufferSize, engine);
+    }
 }
 
 void NewProjectDialog::RenderBody(const ellindyer::ui::fonts::FontSet& fonts)
 {
-    if (fonts.default_regular != nullptr)
-    {
-        ImGui::PushFont(fonts.default_regular, fonts.default_regular->LegacySize);
-    }
+    ellindyer::ui::imgui_compat::PushFont(fonts.default_regular);
 
-    if (root_picker_.Render(fonts))
-    {
-        // No native file dialog: leave the current value intact and let the
-        // user edit the text field. The picker remains a valid text input.
-    }
+    const bool browse_pressed = root_picker_.Render(fonts);
+    (void)browse_pressed;
+
+    (void)browse_pressed;
+
+    (void)fonts;
 
     ImGui::Spacing();
 
@@ -133,7 +172,42 @@ void NewProjectDialog::RenderBody(const ellindyer::ui::fonts::FontSet& fonts)
 
     ImGui::TextUnformatted("Target Engine");
     ImGui::SetNextItemWidth(-1.0f);
-    ImGui::InputText("##NewProjectEngine", engine_buffer_, kEngineBufferSize);
+    if (ImGui::BeginCombo("##NewProjectEngineCombo", kEngineOptions[engine_combo_index_]))
+    {
+        for (int i = 0; i < kEngineOptionCount; ++i)
+        {
+            const bool selected = (engine_combo_index_ == i);
+            if (ImGui::Selectable(kEngineOptions[i], selected))
+            {
+                engine_combo_index_ = i;
+                if (i != kCustomEngineIndex)
+                {
+                    CopyText(engine_buffer_, kEngineBufferSize, kEngineOptions[i]);
+                }
+                else if (custom_engine_buffer_[0] != '\0')
+                {
+                    CopyText(engine_buffer_, kEngineBufferSize, custom_engine_buffer_);
+                }
+            }
+            if (selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    if (engine_combo_index_ == kCustomEngineIndex)
+    {
+        ImGui::TextUnformatted("Custom Engine Name");
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::InputText("##NewProjectCustomEngine",
+                             custom_engine_buffer_,
+                             kCustomEngineBufferSize))
+        {
+            CopyText(engine_buffer_, kEngineBufferSize, custom_engine_buffer_);
+        }
+    }
 
     ImGui::Spacing();
 
@@ -157,10 +231,7 @@ void NewProjectDialog::RenderBody(const ellindyer::ui::fonts::FontSet& fonts)
                               kWorldDescriptionBufferSize,
                               ImVec2(-1.0f, 60.0f));
 
-    if (fonts.default_regular != nullptr)
-    {
-        ImGui::PopFont();
-    }
+    ImGui::PopFont();
 }
 
 bool NewProjectDialog::CanAccept() const
@@ -265,6 +336,23 @@ void NewProjectDialog::LoadDefaultsIfEmpty()
     if (engine_buffer_[0] == '\0' && !defaults_.default_engine_target.empty())
     {
         CopyText(engine_buffer_, kEngineBufferSize, defaults_.default_engine_target);
+    }
+}
+
+void NewProjectDialog::UpdateEngineBufferFromSelection()
+{
+    if (engine_combo_index_ < 0 || engine_combo_index_ >= kEngineOptionCount)
+    {
+        return;
+    }
+
+    if (engine_combo_index_ == kCustomEngineIndex)
+    {
+        CopyText(engine_buffer_, kEngineBufferSize, custom_engine_buffer_);
+    }
+    else
+    {
+        CopyText(engine_buffer_, kEngineBufferSize, kEngineOptions[engine_combo_index_]);
     }
 }
 

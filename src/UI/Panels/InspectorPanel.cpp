@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include <utility>
+
 #include "UI/ImGui/ImGuiCompat.hpp"
 
 namespace ellindyer::ui::panels
@@ -28,34 +30,26 @@ void InspectorPanel::Render(
 
     panel.RenderHeader(fonts);
 
-    if (selection_title_.empty())
+    switch (mode_)
+    {
+    case InspectorMode::Empty:
     {
         panel.RenderTextMuted(fonts, "Nothing selected.");
         panel.RenderTextMuted(fonts, "Select an object to inspect its properties.");
+        break;
     }
-    else
+
+    case InspectorMode::ProjectProperties:
     {
-        panel.RenderText(fonts, selection_title_);
+        RenderProjectProperties(fonts);
+        break;
+    }
 
-        if (!selection_subtitle_.empty())
-        {
-            panel.RenderTextMuted(fonts, selection_subtitle_);
-        }
-
-        panel.RenderSeparator();
-
-        if (properties_.empty())
-        {
-            panel.RenderTextMuted(fonts, "(no properties)");
-        }
-        else
-        {
-            for (const PropertyEntry& entry : properties_)
-            {
-                panel.RenderTextMuted(fonts, entry.key);
-                panel.RenderText(fonts, "  " + entry.value);
-            }
-        }
+    case InspectorMode::Selection:
+    {
+        RenderSelection(fonts);
+        break;
+    }
     }
 
     panel.EndPanel();
@@ -95,6 +89,113 @@ void InspectorPanel::Clear()
     selection_subtitle_.clear();
     sections_.clear();
     properties_.clear();
+}
+
+void InspectorPanel::ShowProjectProperties(ellindyer::project::Project* project)
+{
+    project_inspector_.Bind(project);
+    mode_ = InspectorMode::ProjectProperties;
+}
+
+void InspectorPanel::ShowSelection()
+{
+    project_inspector_.Unbind();
+    mode_ = InspectorMode::Selection;
+}
+
+InspectorMode InspectorPanel::GetMode() const noexcept
+{
+    return mode_;
+}
+
+ellindyer::ui::inspector::ProjectPropertiesInspector&
+InspectorPanel::GetProjectPropertiesInspector() noexcept
+{
+    return project_inspector_;
+}
+
+const ellindyer::ui::inspector::ProjectPropertiesInspector&
+InspectorPanel::GetProjectPropertiesInspector() const noexcept
+{
+    return project_inspector_;
+}
+
+void InspectorPanel::SetPropertyChangedHandler(PropertyChangedHandler handler)
+{
+    property_changed_handler_ = std::move(handler);
+}
+
+void InspectorPanel::RenderSelection(const ellindyer::ui::fonts::FontSet& fonts)
+{
+    using ellindyer::ui::layout::Panel;
+    using ellindyer::ui::layout::PanelStyle;
+
+    Panel inner("InspectorSelection", "");
+
+    PanelStyle style{};
+    style.show_header = false;
+    inner.SetStyle(style);
+    inner.BeginPanel(ImGui::GetContentRegionAvail().x,
+                     ImGui::GetContentRegionAvail().y);
+
+    if (selection_title_.empty())
+    {
+        inner.RenderTextMuted(fonts, "Nothing selected.");
+        inner.RenderTextMuted(fonts, "Select an object to inspect its properties.");
+        inner.EndPanel();
+        return;
+    }
+
+    inner.RenderText(fonts, selection_title_);
+
+    if (!selection_subtitle_.empty())
+    {
+        inner.RenderTextMuted(fonts, selection_subtitle_);
+    }
+
+    inner.RenderSeparator();
+
+    if (properties_.empty())
+    {
+        inner.RenderTextMuted(fonts, "(no properties)");
+    }
+    else
+    {
+        for (const PropertyEntry& entry : properties_)
+        {
+            if (fonts.small_regular != nullptr)
+            {
+                ellindyer::ui::imgui_compat::PushFont(fonts.small_regular);
+            }
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.55f, 0.55f, 1.00f));
+            ImGui::TextUnformatted(entry.key.c_str());
+            ImGui::PopStyleColor();
+            if (fonts.small_regular != nullptr)
+            {
+                ImGui::PopFont();
+            }
+
+            inner.RenderText(fonts, entry.value);
+        }
+    }
+
+    inner.EndPanel();
+}
+
+void InspectorPanel::RenderProjectProperties(const ellindyer::ui::fonts::FontSet& fonts)
+{
+    project_inspector_.SetCallbacks(
+        ellindyer::ui::inspector::ProjectPropertiesInspectorCallbacks{
+            [this]()
+            {
+                if (property_changed_handler_)
+                {
+                    property_changed_handler_();
+                }
+            },
+            nullptr});
+
+    project_inspector_.Render(fonts);
 }
 
 } // namespace ellindyer::ui::panels

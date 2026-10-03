@@ -7,12 +7,11 @@ namespace ellindyer::ui::imgui_compat
 
 inline void PushFont(ImFont* font)
 {
-    ImGui::PushFont(font, font != nullptr ? font->LegacySize : 0.0f);
-}
-
-inline void PopFont()
-{
-    ImGui::PopFont();
+    if (font == nullptr)
+    {
+        return;
+    }
+    ImGui::PushFont(font, font->LegacySize);
 }
 
 } // namespace ellindyer::ui::imgui_compat

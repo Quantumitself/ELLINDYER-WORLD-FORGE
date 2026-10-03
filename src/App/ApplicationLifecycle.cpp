@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <string>
+#include <objbase.h>
 
 #include <imgui.h>
 
@@ -60,6 +61,7 @@ ApplicationLifecycle::~ApplicationLifecycle()
 
 ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
 {
+
     using ellindyer::core::ErrorCode;
     using ellindyer::core::MakeError;
     using ellindyer::core::Result;
@@ -71,6 +73,10 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
     }
 
     state_ = ApplicationState::Initializing;
+
+    #if defined(_WIN32)
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    #endif
 
     const Result<void> settings_result = LoadApplicationSettings();
     if (settings_result.HasError())
@@ -111,33 +117,38 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
             {
             case ProjectEventKind::Created:
                 status_message_ = "Project created";
-                if (const ellindyer::project::Project* project =
+                if (ellindyer::project::Project* project =
                         context_.GetProjectManager().GetProject())
                 {
                     shell_layout_.GetProjectExplorer().RebuildFromProject(*project);
+                    shell_layout_.GetInspector().ShowProjectProperties(project);
                 }
                 break;
 
             case ProjectEventKind::Opened:
                 status_message_ = "Project opened";
-                if (const ellindyer::project::Project* project =
+                if (ellindyer::project::Project* project =
                         context_.GetProjectManager().GetProject())
                 {
                     shell_layout_.GetProjectExplorer().RebuildFromProject(*project);
+                    shell_layout_.GetInspector().ShowProjectProperties(project);
                 }
                 break;
 
             case ProjectEventKind::Closed:
                 status_message_ = "Project closed";
                 shell_layout_.GetProjectExplorer().ClearTree();
+                shell_layout_.GetInspector().Clear();
+                shell_layout_.GetInspector().ShowSelection();
                 break;
 
             case ProjectEventKind::Saved:
                 status_message_ = "Project saved";
-                if (const ellindyer::project::Project* project =
+                if (ellindyer::project::Project* project =
                         context_.GetProjectManager().GetProject())
                 {
                     shell_layout_.GetProjectExplorer().RebuildFromProject(*project);
+                    shell_layout_.GetInspector().ShowProjectProperties(project);
                 }
                 break;
 
@@ -229,6 +240,10 @@ void ApplicationLifecycle::Shutdown()
         ellindyer::core::LogBootstrap::Shutdown();
         logging_initialized_ = false;
     }
+
+    #if defined(_WIN32)
+        CoUninitialize();
+    #endif
 
     state_ = ApplicationState::Terminated;
 
@@ -456,12 +471,26 @@ void ApplicationLifecycle::ConfigureShell()
     shell_layout_.GetProjectExplorer().SetNodeSelectedHandler(
         [this](const ellindyer::ui::project_explorer::ExplorerNode& node)
         {
-            if (node.path.empty())
+            if (node.path.empty() && node.kind !=
+                    ellindyer::ui::project_explorer::ExplorerNodeKind::Root)
             {
                 return;
             }
-            ELLINDYER_LOG_INFO("Explorer selection: " + node.path.generic_string());
 
+            ELLINDYER_LOG_INFO("Explorer selection: " +
+                (node.path.empty() ? node.label : node.path.generic_string()));
+
+            if (node.kind == ellindyer::ui::project_explorer::ExplorerNodeKind::Root)
+            {
+                if (ellindyer::project::Project* project =
+                        context_.GetProjectManager().GetProject())
+                {
+                    shell_layout_.GetInspector().ShowProjectProperties(project);
+                }
+                return;
+            }
+
+            shell_layout_.GetInspector().ShowSelection();
             shell_layout_.GetInspector().Clear();
             shell_layout_.GetInspector().SetSelectionTitle(node.label);
             shell_layout_.GetInspector().SetSelectionSubtitle(
@@ -488,6 +517,16 @@ void ApplicationLifecycle::ConfigureShell()
                 node.path.generic_string());
         });
 
+    shell_layout_.GetInspector().SetPropertyChangedHandler(
+        [this]()
+        {
+            if (ellindyer::project::Project* project =
+                    context_.GetProjectManager().GetProject())
+            {
+                project->MarkModified();
+            }
+        });
+
     shell_layout_.GetWorkspace().SetTitle("Workspace");
     shell_layout_.GetWorkspace().SetDescription("Ellindyer World Forge");
     shell_layout_.GetWorkspace().AddHint(
@@ -499,10 +538,15 @@ void ApplicationLifecycle::ConfigureShell()
     shell_layout_.GetInspector().SetSelectionSubtitle("");
     shell_layout_.GetInspector().Clear();
 
-    if (const ellindyer::project::Project* project =
+    if (ellindyer::project::Project* project =
             context_.GetProjectManager().GetProject())
     {
         shell_layout_.GetProjectExplorer().RebuildFromProject(*project);
+        shell_layout_.GetInspector().ShowProjectProperties(project);
+    }
+    else
+    {
+        shell_layout_.GetInspector().ShowSelection();
     }
 }
 

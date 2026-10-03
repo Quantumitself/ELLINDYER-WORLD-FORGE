@@ -1,4 +1,5 @@
 #include "UI/Dialogs/OpenProjectDialog.hpp"
+#include "UI/Dialogs/PlatformFileDialog.hpp"
 
 #include <algorithm>
 #include <utility>
@@ -46,6 +47,17 @@ OpenProjectDialog::OpenProjectDialog()
     PathPickerStyle picker_style{};
     picker_style.browse_button_width = 78.0f;
     root_picker_.SetStyle(picker_style);
+
+    root_picker_.SetBrowseHandler([this]()
+    {
+        const std::filesystem::path initial = root_picker_.GetValue();
+        const std::filesystem::path picked =
+            PlatformFileDialog::PickFolder(initial);
+        if (!picked.empty())
+        {
+            root_picker_.SetValue(picked);
+        }
+    });
 
     RecentProjectsListStyle list_style{};
     recent_list_.SetStyle(list_style);

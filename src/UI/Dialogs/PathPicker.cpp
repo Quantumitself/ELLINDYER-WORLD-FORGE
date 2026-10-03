@@ -83,6 +83,11 @@ bool PathPicker::IsReadOnly() const noexcept
     return read_only_;
 }
 
+void PathPicker::SetBrowseHandler(BrowseHandler handler)
+{
+    browse_handler_ = std::move(handler);
+}
+
 bool PathPicker::Render(const ellindyer::ui::fonts::FontSet& fonts)
 {
     if (fonts.default_regular != nullptr)
@@ -133,6 +138,11 @@ bool PathPicker::Render(const ellindyer::ui::fonts::FontSet& fonts)
     if (fonts.default_regular != nullptr)
     {
         ImGui::PopFont();
+    }
+
+    if (browse_pressed && browse_handler_)
+    {
+        browse_handler_();
     }
 
     return browse_pressed;

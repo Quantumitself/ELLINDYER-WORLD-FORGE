@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <string>
 
 #include <imgui.h>
@@ -13,15 +14,17 @@ namespace ellindyer::ui::dialogs
 
 struct PathPickerStyle
 {
-    float   input_width        = 0.0f;
-    float   browse_button_width = 78.0f;
-    float   input_height       = 24.0f;
-    ImVec4  hint_color         = ImVec4(0.55f, 0.55f, 0.55f, 1.00f);
+    float   input_width          = 0.0f;
+    float   browse_button_width  = 78.0f;
+    float   input_height         = 24.0f;
+    ImVec4  hint_color           = ImVec4(0.55f, 0.55f, 0.55f, 1.00f);
 };
 
 class PathPicker
 {
 public:
+    using BrowseHandler = std::function<void()>;
+
     PathPicker();
     ~PathPicker();
 
@@ -31,24 +34,23 @@ public:
     PathPicker& operator=(PathPicker&&) noexcept = delete;
 
     void SetLabel(std::string label);
-
     [[nodiscard]] const std::string& GetLabel() const noexcept;
 
     void SetHint(std::string hint);
-
     [[nodiscard]] const std::string& GetHint() const noexcept;
 
     void SetStyle(const PathPickerStyle& style);
-
     [[nodiscard]] const PathPickerStyle& GetStyle() const noexcept;
 
     void SetValue(std::filesystem::path value);
-
     [[nodiscard]] const std::filesystem::path& GetValue() const noexcept;
 
     void SetReadOnly(bool read_only) noexcept;
-
     [[nodiscard]] bool IsReadOnly() const noexcept;
+
+    // Attach a handler that runs when the user clicks Browse.
+    // The handler is responsible for calling SetValue with the result.
+    void SetBrowseHandler(BrowseHandler handler);
 
     [[nodiscard]] bool Render(const ellindyer::ui::fonts::FontSet& fonts);
 
@@ -58,6 +60,7 @@ private:
     PathPickerStyle     style_{};
     std::filesystem::path value_;
     bool                read_only_ = false;
+    BrowseHandler       browse_handler_;
     char                buffer_[1024] = {};
 };
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <filesystem>
-#include <string>
 #include <functional>
+#include <string>
 
 #include "Core/Error.hpp"
 #include "Core/Result.hpp"
@@ -50,31 +50,28 @@ public:
     NewProjectDialog& operator=(NewProjectDialog&&) noexcept = delete;
 
     void SetDefaults(const NewProjectDefaultOptions& defaults);
-
     void SetAcceptHandler(AcceptHandler handler);
-
     [[nodiscard]] const NewProjectRequest& GetRequest() const noexcept;
 
 protected:
     void OnOpened() override;
-
     void RenderBody(const ellindyer::ui::fonts::FontSet& fonts) override;
-
     [[nodiscard]] bool CanAccept() const override;
-
     void OnAccept() override;
 
-    friend struct NewProjectDialogAccess;
 private:
     [[nodiscard]] ellindyer::core::Result<void> ValidateInput() const;
-
     void LoadDefaultsIfEmpty();
+    void UpdateEngineBufferFromSelection();
 
     NewProjectDefaultOptions defaults_{};
     NewProjectRequest        request_{};
     PathPicker               root_picker_{};
     AcceptHandler            accept_handler_;
-    friend struct NewProjectDialogAccess;
+
+    int                      engine_combo_index_ = 0;
+    char                     custom_engine_buffer_[64] = {};
+
     char                     name_buffer_[128]     = {};
     char                     author_buffer_[128]   = {};
     char                     organization_buffer_[128] = {};
