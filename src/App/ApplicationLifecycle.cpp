@@ -35,9 +35,7 @@ constexpr std::size_t  kLogMaxFiles      = 4;
 
 ellindyer::core::LogLevel ParseLogLevel(const std::string& level_text)
 {
-    using ellindyer::core::LogLevel;
     using ellindyer::core::LogLevelFromString;
-
     return LogLevelFromString(level_text);
 }
 
@@ -45,6 +43,10 @@ ellindyer::core::LogLevel ParseLogLevel(const std::string& level_text)
 
 ApplicationLifecycle::ApplicationLifecycle()
     : ui_host_(std::make_unique<ellindyer::ui::UIHost>())
+    , new_project_dialog_(std::make_shared<ellindyer::ui::dialogs::NewProjectDialog>())
+    , open_project_dialog_(std::make_shared<ellindyer::ui::dialogs::OpenProjectDialog>())
+    , save_project_as_dialog_(std::make_shared<ellindyer::ui::dialogs::SaveProjectAsDialog>())
+    , unsaved_changes_dialog_(std::make_shared<ellindyer::ui::dialogs::UnsavedChangesDialog>())
 {
 }
 
@@ -99,6 +101,7 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
     ConfigureMenuBar();
     ConfigureToolbar();
     ConfigureStatusBar();
+    ConfigureDialogs();
 
     context_.GetProjectManager().AddEventListener(
         [this](const ellindyer::project::ProjectEvent& event)
@@ -106,27 +109,13 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
             using ellindyer::project::ProjectEventKind;
             switch (event.kind)
             {
-            case ProjectEventKind::Created:
-                status_message_ = "Project created";
-                break;
-            case ProjectEventKind::Opened:
-                status_message_ = "Project opened";
-                break;
-            case ProjectEventKind::Closed:
-                status_message_ = "Project closed";
-                break;
-            case ProjectEventKind::Saved:
-                status_message_ = "Project saved";
-                break;
-            case ProjectEventKind::Modified:
-                status_message_ = "Modified";
-                break;
-            case ProjectEventKind::Renamed:
-                status_message_ = "Project renamed";
-                break;
-            case ProjectEventKind::MetadataChanged:
-                status_message_ = "Project metadata changed";
-                break;
+            case ProjectEventKind::Created:         status_message_ = "Project created"; break;
+            case ProjectEventKind::Opened:          status_message_ = "Project opened"; break;
+            case ProjectEventKind::Closed:          status_message_ = "Project closed"; break;
+            case ProjectEventKind::Saved:           status_message_ = "Project saved"; break;
+            case ProjectEventKind::Modified:        status_message_ = "Modified"; break;
+            case ProjectEventKind::Renamed:         status_message_ = "Project renamed"; break;
+            case ProjectEventKind::MetadataChanged: status_message_ = "Project metadata changed"; break;
             }
 
             if (!event.project_name.empty())
@@ -494,6 +483,53 @@ void ApplicationLifecycle::ConfigureStatusBar()
     ellindyer::ui::statusbar::ApplicationStatusBarBuilder::Build(status_bar, state);
 }
 
+void ApplicationLifecycle::ConfigureDialogs()
+{
+    if (new_project_dialog_)
+    {
+        new_project_dialog_->SetAcceptHandler(
+            [this](const ellindyer::ui::dialogs::NewProjectRequest& request)
+            {
+                HandleNewProjectRequest(request);
+            });
+
+        dialog_host_.RegisterDialog(new_project_dialog_);
+    }
+
+    if (open_project_dialog_)
+    {
+        open_project_dialog_->SetAcceptHandler(
+            [this](const ellindyer::ui::dialogs::OpenProjectRequest& request)
+            {
+                HandleOpenProjectRequest(request);
+            });
+
+        dialog_host_.RegisterDialog(open_project_dialog_);
+    }
+
+    if (save_project_as_dialog_)
+    {
+        save_project_as_dialog_->SetAcceptHandler(
+            [this](const ellindyer::ui::dialogs::SaveProjectAsRequest& request)
+            {
+                HandleSaveProjectAsRequest(request);
+            });
+
+        dialog_host_.RegisterDialog(save_project_as_dialog_);
+    }
+
+    if (unsaved_changes_dialog_)
+    {
+        unsaved_changes_dialog_->SetChoiceHandler(
+            [this](ellindyer::ui::dialogs::UnsavedChangesChoice choice)
+            {
+                HandleUnsavedChangesChoice(choice);
+            });
+
+        dialog_host_.RegisterDialog(unsaved_changes_dialog_);
+    }
+}
+
 void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
 {
     ELLINDYER_LOG_INFO("Menu command: " + identifier);
@@ -565,101 +601,37 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
 
     if (identifier == "file.exit")
     {
-        should_exit_ = true;
-        if (ui_host_)
-        {
-            ui_host_->RequestClose();
-        }
+        RequestGuardedAction(PendingAction::ExitApplication);
         return;
     }
 
     if (identifier == "file.new_project")
     {
-        ellindyer::project::ProjectCreateOptions options{};
-        options.root = context_.GetScratchDirectory() / "SampleProject";
-        std::error_code remove_ec;
-        std::filesystem::remove_all(options.root, remove_ec);
-        options.overwrite_existing = true;
-        options.metadata.name = "SampleProject";
-        options.metadata.world_name = "Elyndra";
-        options.metadata.author = context_.GetApplicationInfo().organization;
-        options.metadata.description = "Sample project created from the File menu.";
-
-        const ellindyer::core::Result<void> result =
-            context_.GetProjectManager().CreateProject(options);
-        if (result.HasError())
-        {
-            ELLINDYER_LOG_ERROR("Create project failed: " +
-                                result.GetError().ToDiagnosticString());
-        }
+        RequestGuardedAction(PendingAction::NewProject);
         return;
     }
 
     if (identifier == "file.open_project")
     {
-        const std::vector<std::filesystem::path>& recent =
-            context_.GetProjectManager().GetRecentProjects();
-        if (recent.empty())
-        {
-            ELLINDYER_LOG_INFO("No recent projects to open.");
-            return;
-        }
-
-        ellindyer::project::ProjectOpenOptions options{};
-        options.root = recent.front();
-        options.require_manifest = true;
-
-        const ellindyer::core::Result<void> result =
-            context_.GetProjectManager().OpenProject(options);
-        if (result.HasError())
-        {
-            ELLINDYER_LOG_ERROR("Open project failed: " +
-                                result.GetError().ToDiagnosticString());
-        }
+        RequestGuardedAction(PendingAction::OpenProject);
         return;
     }
 
     if (identifier == "file.save_project")
     {
-        const ellindyer::core::Result<void> result =
-            context_.GetProjectManager().SaveProject();
-        if (result.HasError())
-        {
-            ELLINDYER_LOG_ERROR("Save project failed: " +
-                                result.GetError().ToDiagnosticString());
-        }
+        PerformSaveProject();
         return;
     }
 
     if (identifier == "file.save_project_as")
     {
-        const std::string base_name =
-            context_.GetProjectManager().HasProject()
-                ? context_.GetProjectManager().GetProjectName()
-                : std::string{"SampleProject"};
-
-        std::filesystem::path target =
-            context_.GetScratchDirectory() / (base_name + "_copy");
-
-        const ellindyer::core::Result<void> result =
-            context_.GetProjectManager().SaveProjectAs(target);
-        if (result.HasError())
-        {
-            ELLINDYER_LOG_ERROR("Save project as failed: " +
-                                result.GetError().ToDiagnosticString());
-        }
+        OpenSaveProjectAsDialog();
         return;
     }
 
     if (identifier == "file.close_project")
     {
-        const ellindyer::core::Result<void> result =
-            context_.GetProjectManager().CloseProject();
-        if (result.HasError())
-        {
-            ELLINDYER_LOG_ERROR("Close project failed: " +
-                                result.GetError().ToDiagnosticString());
-        }
+        RequestGuardedAction(PendingAction::CloseProject);
         return;
     }
 
@@ -674,7 +646,6 @@ void ApplicationLifecycle::HandleMenuCommand(const std::string& identifier)
         }
         return;
     }
-
 }
 
 void ApplicationLifecycle::HandleToolbarCommand(const std::string& identifier)
@@ -709,24 +680,6 @@ void ApplicationLifecycle::HandleToolbarCommand(const std::string& identifier)
         return;
     }
 
-    if (identifier == "toolbar.validate_project")
-    {
-        HandleMenuCommand("tools.validate_project");
-        return;
-    }
-
-    if (identifier == "toolbar.open_search")
-    {
-        HandleMenuCommand("tools.open_search");
-        return;
-    }
-
-    if (identifier == "toolbar.export_universal")
-    {
-        HandleMenuCommand("export.universal");
-        return;
-    }
-
     ELLINDYER_LOG_INFO("Toolbar command: " + identifier);
 }
 
@@ -747,17 +700,324 @@ void ApplicationLifecycle::HandleStatusBarCommand(const std::string& identifier)
     ELLINDYER_LOG_INFO("Status bar command: " + identifier);
 }
 
+void ApplicationLifecycle::HandleNewProjectRequest(
+    const ellindyer::ui::dialogs::NewProjectRequest& request)
+{
+    ellindyer::project::ProjectCreateOptions options{};
+    options.root               = request.root;
+    options.overwrite_existing = request.overwrite_existing;
+
+    options.metadata.name              = request.name;
+    options.metadata.description       = request.description;
+    options.metadata.author            = request.author;
+    options.metadata.organization      = request.organization;
+    options.metadata.world_name        = request.world_name.empty()
+                                             ? request.name
+                                             : request.world_name;
+    options.metadata.world_description = request.world_description;
+    options.metadata.project_version   = request.project_version;
+    options.metadata.engine_target     = request.engine_target;
+    options.metadata.format_version    = 1;
+
+    const ellindyer::core::Result<void> result =
+        context_.GetProjectManager().CreateProject(options);
+
+    if (result.HasError())
+    {
+        ELLINDYER_LOG_ERROR("Create project failed: " +
+                            result.GetError().ToDiagnosticString());
+        if (new_project_dialog_)
+        {
+            new_project_dialog_->SetErrorMessage(
+                result.GetError().ToDiagnosticString());
+            new_project_dialog_->Open();
+        }
+        return;
+    }
+
+    if (new_project_dialog_)
+    {
+        new_project_dialog_->ClearErrorMessage();
+    }
+}
+
+void ApplicationLifecycle::HandleOpenProjectRequest(
+    const ellindyer::ui::dialogs::OpenProjectRequest& request)
+{
+    ellindyer::project::ProjectOpenOptions options{};
+    options.root             = request.root;
+    options.require_manifest = request.require_manifest;
+
+    const ellindyer::core::Result<void> result =
+        context_.GetProjectManager().OpenProject(options);
+
+    if (result.HasError())
+    {
+        ELLINDYER_LOG_ERROR("Open project failed: " +
+                            result.GetError().ToDiagnosticString());
+        if (open_project_dialog_)
+        {
+            open_project_dialog_->SetErrorMessage(
+                result.GetError().ToDiagnosticString());
+            open_project_dialog_->Open();
+        }
+        return;
+    }
+
+    if (open_project_dialog_)
+    {
+        open_project_dialog_->ClearErrorMessage();
+    }
+}
+
+void ApplicationLifecycle::HandleSaveProjectAsRequest(
+    const ellindyer::ui::dialogs::SaveProjectAsRequest& request)
+{
+    const ellindyer::core::Result<void> result =
+        context_.GetProjectManager().SaveProjectAs(request.target_root);
+
+    if (result.HasError())
+    {
+        ELLINDYER_LOG_ERROR("Save project as failed: " +
+                            result.GetError().ToDiagnosticString());
+        if (save_project_as_dialog_)
+        {
+            save_project_as_dialog_->SetErrorMessage(
+                result.GetError().ToDiagnosticString());
+            save_project_as_dialog_->Open();
+        }
+        return;
+    }
+
+    if (save_project_as_dialog_)
+    {
+        save_project_as_dialog_->ClearErrorMessage();
+    }
+}
+
+void ApplicationLifecycle::HandleUnsavedChangesChoice(
+    ellindyer::ui::dialogs::UnsavedChangesChoice choice)
+{
+    using ellindyer::ui::dialogs::UnsavedChangesChoice;
+
+    const PendingAction action = pending_action_;
+    pending_action_ = PendingAction::None;
+
+    if (choice == UnsavedChangesChoice::Cancel)
+    {
+        return;
+    }
+
+    if (choice == UnsavedChangesChoice::Save)
+    {
+        const ellindyer::core::Result<void> save_result =
+            context_.GetProjectManager().SaveProject();
+        if (save_result.HasError())
+        {
+            ELLINDYER_LOG_ERROR("Save before action failed: " +
+                                save_result.GetError().ToDiagnosticString());
+            return;
+        }
+    }
+
+    switch (action)
+    {
+    case PendingAction::CloseProject:
+        PerformCloseProject();
+        break;
+    case PendingAction::NewProject:
+        PerformNewProject();
+        break;
+    case PendingAction::OpenProject:
+        PerformOpenProject();
+        break;
+    case PendingAction::ExitApplication:
+        PerformExitApplication();
+        break;
+    case PendingAction::None:
+        break;
+    }
+}
+
+void ApplicationLifecycle::OpenNewProjectDialog()
+{
+    if (!new_project_dialog_)
+    {
+        return;
+    }
+
+    ellindyer::ui::dialogs::NewProjectDefaultOptions defaults{};
+    defaults.suggested_root          = context_.GetScratchDirectory() / "NewProject";
+    defaults.author                  = context_.GetApplicationInfo().organization;
+    defaults.organization            = context_.GetApplicationInfo().organization;
+    defaults.default_engine_target   = "Unreal";
+    defaults.default_project_version = "0.1.0";
+
+    new_project_dialog_->SetDefaults(defaults);
+    new_project_dialog_->ClearErrorMessage();
+    new_project_dialog_->Open();
+}
+
+void ApplicationLifecycle::OpenOpenProjectDialog()
+{
+    if (!open_project_dialog_)
+    {
+        return;
+    }
+
+    ellindyer::ui::dialogs::OpenProjectDefaultOptions defaults{};
+    defaults.recent_projects = context_.GetProjectManager().GetRecentProjects();
+
+    if (!defaults.recent_projects.empty())
+    {
+        defaults.suggested_root = defaults.recent_projects.front();
+    }
+    else
+    {
+        defaults.suggested_root = context_.GetScratchDirectory();
+    }
+
+    open_project_dialog_->SetDefaults(defaults);
+    open_project_dialog_->ClearErrorMessage();
+    open_project_dialog_->Open();
+}
+
+void ApplicationLifecycle::OpenSaveProjectAsDialog()
+{
+    if (!save_project_as_dialog_)
+    {
+        return;
+    }
+
+    const ellindyer::project::ProjectManager& manager = context_.GetProjectManager();
+    if (!manager.HasProject())
+    {
+        ELLINDYER_LOG_WARNING("Save As requested with no open project.");
+        return;
+    }
+
+    ellindyer::ui::dialogs::SaveProjectAsDefaultOptions defaults{};
+    defaults.current_root = manager.GetProjectRoot();
+    defaults.project_name = manager.GetProjectName();
+
+    std::filesystem::path suggested = manager.GetProjectRoot();
+    if (!suggested.empty())
+    {
+        suggested += "_copy";
+    }
+    defaults.suggested_target = suggested;
+
+    save_project_as_dialog_->SetDefaults(defaults);
+    save_project_as_dialog_->ClearErrorMessage();
+    save_project_as_dialog_->Open();
+}
+
+void ApplicationLifecycle::PerformSaveProject()
+{
+    const ellindyer::core::Result<void> result =
+        context_.GetProjectManager().SaveProject();
+
+    if (result.HasError())
+    {
+        ELLINDYER_LOG_ERROR("Save project failed: " +
+                            result.GetError().ToDiagnosticString());
+    }
+}
+
+void ApplicationLifecycle::PerformCloseProject()
+{
+    const ellindyer::core::Result<void> result =
+        context_.GetProjectManager().CloseProject();
+
+    if (result.HasError())
+    {
+        ELLINDYER_LOG_ERROR("Close project failed: " +
+                            result.GetError().ToDiagnosticString());
+    }
+}
+
+void ApplicationLifecycle::PerformExitApplication()
+{
+    should_exit_ = true;
+    if (ui_host_)
+    {
+        ui_host_->RequestClose();
+    }
+}
+
+void ApplicationLifecycle::PerformNewProject()
+{
+    OpenNewProjectDialog();
+}
+
+void ApplicationLifecycle::PerformOpenProject()
+{
+    OpenOpenProjectDialog();
+}
+
+void ApplicationLifecycle::RequestGuardedAction(PendingAction action)
+{
+    if (!IsActionAllowedNow())
+    {
+        return;
+    }
+
+    if (context_.GetProjectManager().IsModified())
+    {
+        pending_action_ = action;
+
+        if (unsaved_changes_dialog_)
+        {
+            ellindyer::ui::dialogs::UnsavedChangesPromptOptions options{};
+            options.project_name       = context_.GetProjectManager().GetProjectName();
+            options.action_description = DescribePendingAction(action);
+
+            unsaved_changes_dialog_->SetPromptOptions(options);
+            unsaved_changes_dialog_->Open();
+        }
+
+        return;
+    }
+
+    switch (action)
+    {
+    case PendingAction::CloseProject:    PerformCloseProject();    break;
+    case PendingAction::NewProject:      PerformNewProject();      break;
+    case PendingAction::OpenProject:     PerformOpenProject();     break;
+    case PendingAction::ExitApplication: PerformExitApplication(); break;
+    case PendingAction::None:            break;
+    }
+}
+
+std::string ApplicationLifecycle::DescribePendingAction(PendingAction action) const
+{
+    switch (action)
+    {
+    case PendingAction::CloseProject:    return "close the project";
+    case PendingAction::NewProject:      return "create a new project";
+    case PendingAction::OpenProject:     return "open another project";
+    case PendingAction::ExitApplication: return "exit the application";
+    case PendingAction::None:            break;
+    }
+    return "continue";
+}
+
+bool ApplicationLifecycle::IsActionAllowedNow() const noexcept
+{
+    if (dialog_host_.HasOpenDialog())
+    {
+        return false;
+    }
+    return true;
+}
+
 ellindyer::ui::menu::ApplicationMenuHandlers ApplicationLifecycle::BuildMenuHandlers()
 {
     ellindyer::ui::menu::ApplicationMenuHandlers handlers{};
 
     handlers.on_exit_application = [this]()
     {
-        should_exit_ = true;
-        if (ui_host_)
-        {
-            ui_host_->RequestClose();
-        }
+        HandleMenuCommand("file.exit");
     };
 
     handlers.on_toggle_project_explorer = [this]()
@@ -1033,14 +1293,14 @@ void ApplicationLifecycle::RunSplashStage()
 
 void ApplicationLifecycle::RunMainLoop()
 {
-    while (!ui_host_->ShouldClose() && !should_exit_)
+    while (!ui_host_->ShouldClose())
     {
         if (!ui_host_->PumpMessages())
         {
             break;
         }
 
-        if (ui_host_->ShouldClose() || should_exit_)
+        if (ui_host_->ShouldClose())
         {
             break;
         }
@@ -1053,6 +1313,11 @@ void ApplicationLifecycle::RunMainLoop()
         if (present_result.HasError())
         {
             ELLINDYER_LOG_ERROR(present_result.GetError().ToDiagnosticString());
+            ui_host_->RequestClose();
+        }
+
+        if (should_exit_)
+        {
             ui_host_->RequestClose();
         }
     }
@@ -1073,8 +1338,7 @@ void ApplicationLifecycle::RenderMainFrame()
     menu_bar.SetItemEnabled("File", "file.save_project_as", has_project);
     menu_bar.SetItemEnabled("File", "file.close_project", has_project);
 
-    const bool has_backup =
-        context_.GetProjectManager().HasRecoverableBackup();
+    const bool has_backup = manager.HasRecoverableBackup();
     menu_bar.SetItemEnabled("File", "file.recover_from_backup",
                             has_project && has_backup);
 
@@ -1104,6 +1368,8 @@ void ApplicationLifecycle::RenderMainFrame()
                          shell_window_.GetTopConsumedHeight(),
                          shell_window_.GetBottomConsumedHeight());
     shell_window_.RenderBottom(fonts);
+
+    dialog_host_.Render(fonts);
 }
 
 void ApplicationLifecycle::EmitStartupDiagnostics()
