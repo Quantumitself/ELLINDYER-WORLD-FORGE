@@ -109,13 +109,49 @@ ellindyer::core::Result<void> ApplicationLifecycle::Initialize()
             using ellindyer::project::ProjectEventKind;
             switch (event.kind)
             {
-            case ProjectEventKind::Created:         status_message_ = "Project created"; break;
-            case ProjectEventKind::Opened:          status_message_ = "Project opened"; break;
-            case ProjectEventKind::Closed:          status_message_ = "Project closed"; break;
-            case ProjectEventKind::Saved:           status_message_ = "Project saved"; break;
-            case ProjectEventKind::Modified:        status_message_ = "Modified"; break;
-            case ProjectEventKind::Renamed:         status_message_ = "Project renamed"; break;
-            case ProjectEventKind::MetadataChanged: status_message_ = "Project metadata changed"; break;
+            case ProjectEventKind::Created:
+                status_message_ = "Project created";
+                if (const ellindyer::project::Project* project =
+                        context_.GetProjectManager().GetProject())
+                {
+                    shell_layout_.GetProjectExplorer().RebuildFromProject(*project);
+                }
+                break;
+
+            case ProjectEventKind::Opened:
+                status_message_ = "Project opened";
+                if (const ellindyer::project::Project* project =
+                        context_.GetProjectManager().GetProject())
+                {
+                    shell_layout_.GetProjectExplorer().RebuildFromProject(*project);
+                }
+                break;
+
+            case ProjectEventKind::Closed:
+                status_message_ = "Project closed";
+                shell_layout_.GetProjectExplorer().ClearTree();
+                break;
+
+            case ProjectEventKind::Saved:
+                status_message_ = "Project saved";
+                if (const ellindyer::project::Project* project =
+                        context_.GetProjectManager().GetProject())
+                {
+                    shell_layout_.GetProjectExplorer().RebuildFromProject(*project);
+                }
+                break;
+
+            case ProjectEventKind::Modified:
+                status_message_ = "Modified";
+                break;
+
+            case ProjectEventKind::Renamed:
+                status_message_ = "Project renamed";
+                break;
+
+            case ProjectEventKind::MetadataChanged:
+                status_message_ = "Project metadata changed";
+                break;
             }
 
             if (!event.project_name.empty())
@@ -405,17 +441,52 @@ void ApplicationLifecycle::CaptureUISettings()
 
 void ApplicationLifecycle::ConfigureShell()
 {
-    shell_layout_.GetProjectExplorer().SetProjectName("Ellindyer World Forge");
-    shell_layout_.GetProjectExplorer().AddRootEntry("World");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Schemas");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Entities");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Relationships");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Narrative");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Quests");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Rules");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Formulas");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Maps");
-    shell_layout_.GetProjectExplorer().AddRootEntry("Assets");
+    ellindyer::ui::shell::ShellLayoutConfiguration layout_configuration{};
+    layout_configuration.dockspace.left_fraction      = context_.GetSettingsManager().GetSettings().left_panel_fraction;
+    layout_configuration.dockspace.right_fraction     = context_.GetSettingsManager().GetSettings().right_panel_fraction;
+    layout_configuration.dockspace.bottom_fraction    = context_.GetSettingsManager().GetSettings().bottom_panel_fraction;
+    layout_configuration.dockspace.left_min_width     = 220.0f;
+    layout_configuration.dockspace.right_min_width    = 260.0f;
+    layout_configuration.dockspace.bottom_min_height  = 160.0f;
+    layout_configuration.dockspace.center_min_width   = 320.0f;
+    layout_configuration.dockspace.center_min_height  = 240.0f;
+    layout_configuration.dockspace.splitter_thickness = 6.0f;
+    shell_layout_.Configure(layout_configuration);
+
+    shell_layout_.GetProjectExplorer().SetNodeSelectedHandler(
+        [this](const ellindyer::ui::project_explorer::ExplorerNode& node)
+        {
+            if (node.path.empty())
+            {
+                return;
+            }
+            ELLINDYER_LOG_INFO("Explorer selection: " + node.path.generic_string());
+
+            shell_layout_.GetInspector().Clear();
+            shell_layout_.GetInspector().SetSelectionTitle(node.label);
+            shell_layout_.GetInspector().SetSelectionSubtitle(
+                node.path.parent_path().generic_string());
+
+            switch (node.kind)
+            {
+            case ellindyer::ui::project_explorer::ExplorerNodeKind::File:
+                shell_layout_.GetInspector().AddProperty("Kind", "File");
+                break;
+            case ellindyer::ui::project_explorer::ExplorerNodeKind::Directory:
+                shell_layout_.GetInspector().AddProperty("Kind", "Directory");
+                break;
+            case ellindyer::ui::project_explorer::ExplorerNodeKind::Section:
+                shell_layout_.GetInspector().AddProperty("Kind", "Section");
+                break;
+            case ellindyer::ui::project_explorer::ExplorerNodeKind::Project:
+            case ellindyer::ui::project_explorer::ExplorerNodeKind::Root:
+                shell_layout_.GetInspector().AddProperty("Kind", "Project");
+                break;
+            }
+
+            shell_layout_.GetInspector().AddProperty("Path",
+                node.path.generic_string());
+        });
 
     shell_layout_.GetWorkspace().SetTitle("Workspace");
     shell_layout_.GetWorkspace().SetDescription("Ellindyer World Forge");
@@ -427,6 +498,12 @@ void ApplicationLifecycle::ConfigureShell()
     shell_layout_.GetInspector().SetSelectionTitle("");
     shell_layout_.GetInspector().SetSelectionSubtitle("");
     shell_layout_.GetInspector().Clear();
+
+    if (const ellindyer::project::Project* project =
+            context_.GetProjectManager().GetProject())
+    {
+        shell_layout_.GetProjectExplorer().RebuildFromProject(*project);
+    }
 }
 
 void ApplicationLifecycle::ConfigureMenuBar()
